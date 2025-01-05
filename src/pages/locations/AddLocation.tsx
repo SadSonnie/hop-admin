@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Place } from '../../types';
-import { mainTags, additionalTags } from '../../data/locationTags';
+import { Place, Tag } from '../../types';
+import { mockTags } from '../../data/mockTags';
 import { Plus, X, MapPin, Image as ImageIcon } from 'lucide-react';
+import { api } from '../../utils/api';
+
+interface Category {
+  id: string;
+  name: string;
+}
 
 interface LocationForm extends Omit<Place, 'id' | 'rating' | 'distance'> {
   mainImage: File | null;
   additionalImages: File[];
+  tags: string[]; // Храним id тегов
 }
 
 const initialForm: LocationForm = {
@@ -28,6 +35,32 @@ const initialForm: LocationForm = {
 export const AddLocation: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState<LocationForm>(initialForm);
+  const [categories, setCategories] = useState<Category[]>([]);
+  // const [tags, setTags] = useState<Tag[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Загружаем категории
+        const categoriesData = await api.getCategories();
+        setCategories(categoriesData.items || []);
+
+        // Загрузка тегов (закомментировано пока используем моковые данные)
+        /*
+        const tagsData = await api.getTags();
+        setTags(tagsData.items || []);
+        */
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,21 +200,21 @@ export const AddLocation: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Основной тег
+              Категория
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {mainTags.map(tag => (
+              {categories.map(category => (
                 <button
-                  key={tag}
+                  key={category.id}
                   type="button"
-                  onClick={() => setForm(prev => ({ ...prev, mainTag: tag }))}
+                  onClick={() => setForm(prev => ({ ...prev, mainTag: category.id }))}
                   className={`px-3 py-2 rounded-lg text-left text-sm transition-all ${
-                    form.mainTag === tag
+                    form.mainTag === category.id
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {tag}
+                  {category.name}
                 </button>
               ))}
             </div>
@@ -192,37 +225,45 @@ export const AddLocation: React.FC = () => {
               Дополнительные теги
             </label>
             <div className="grid grid-cols-3 gap-2 mb-2">
-              {additionalTags.map(tag => (
+              {mockTags.map(tag => (
                 <button
-                  key={tag}
+                  key={tag.id}
                   type="button"
                   onClick={() => {
                     setForm(prev => ({
                       ...prev,
-                      tags: prev.tags?.includes(tag)
-                        ? prev.tags.filter(t => t !== tag)
-                        : [...(prev.tags || []), tag]
+                      tags: prev.tags.includes(tag.id)
+                        ? prev.tags.filter(t => t !== tag.id)
+                        : [...prev.tags, tag.id]
                     }));
                   }}
                   className={`px-3 py-2 rounded-lg text-left text-sm transition-all ${
-                    form.tags?.includes(tag)
+                    form.tags.includes(tag.id)
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {tag}
+                  <div className="flex items-center gap-2">
+                    <img src={tag.icon} alt="" className="w-5 h-5" />
+                    <span>{tag.name}</span>
+                  </div>
                 </button>
               ))}
             </div>
-            {form.tags && form.tags.length > 0 && (
+            {form.tags.length > 0 && (
               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Выбранные теги:</span>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {form.tags.map(tag => (
-                    <span key={tag} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {tag}
-                    </span>
-                  ))}
+                  {form.tags.map(tagId => {
+                    const tag = mockTags.find(t => t.id === tagId);
+                    if (!tag) return null;
+                    return (
+                      <span key={tag.id} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <img src={tag.icon} alt="" className="w-4 h-4" />
+                        {tag.name}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
