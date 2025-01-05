@@ -43,6 +43,16 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
   return response.json();
 }
 
+interface Category {
+  id: string;
+  // Add other category properties here
+}
+
+interface Tag {
+  id: string;
+  // Add other tag properties here
+}
+
 export const api = {
   // Пользователь
   sendUserData: () => apiRequest('/users', {
@@ -51,7 +61,7 @@ export const api = {
   
   // Категории
   getCategories: () => apiRequest('/categories'),
-  createCategory: (data: any) => apiRequest('/categories', {
+  createCategory: (data: Omit<Category, 'id'>) => apiRequest('/categories', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -66,6 +76,23 @@ export const api = {
     body: JSON.stringify(data),
   }),
   deleteCategory: (id: number) => apiRequest('/categories', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id }),
+  }),
+
+  // Теги
+  getTags: () => apiRequest('/tags'),
+  createTag: (data: Omit<Tag, 'id'>) => apiRequest('/tags', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }),
+  deleteTag: (id: number) => apiRequest('/tags', {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',

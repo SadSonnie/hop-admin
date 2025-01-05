@@ -5,40 +5,25 @@ import {
   Modal,
   Form,
   Input,
-  message,
-  Upload,
 } from 'antd';
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { PageHeader } from '../../components/PageHeader/PageHeader';
-import { tagsApi } from '../../services/api';
 import { Tag } from '../../types';
+import { mockTags } from '../../data/mockTags';
 
 export const Tags: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form] = Form.useForm();
-  const [uploadedIcon, setUploadedIcon] = useState<File | null>(null);
-
-  const fetchTags = async () => {
-    try {
-      setIsLoading(true);
-      const { data } = await tagsApi.getAll();
-      setTags(data);
-    } catch (error) {
-      message.error('Не удалось загрузить теги');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchTags();
+    // Используем моковые данные вместо API
+    setTags(mockTags);
   }, []);
 
   const handleAdd = () => {
     form.resetFields();
-    setUploadedIcon(null);
     setIsModalVisible(true);
   };
 
@@ -54,58 +39,45 @@ export const Tags: React.FC = () => {
       ),
       okText: 'Удалить',
       cancelText: 'Отмена',
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: async () => {
+      onOk: () => {
+        // Закомментированный код удаления через API
+        /*
         try {
-          await tagsApi.delete(tag.id);
-          message.success('Тег удален');
+          await api.deleteTag(tag.id);
+          message.success('Тег успешно удален');
           fetchTags();
         } catch (error) {
+          console.error('Error deleting tag:', error);
           message.error('Не удалось удалить тег');
         }
+        */
+        // Временно просто показываем сообщение
+        message.info('Функция удаления временно отключена');
       },
     });
   };
 
-  const handleModalOk = async () => {
+  const handleSubmit = async (values: any) => {
+    // Закомментированный код создания через API
+    /*
     try {
-      const values = await form.validateFields();
-      if (!uploadedIcon) {
-        message.error('Пожалуйста, загрузите иконку');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('name', values.name);
-      formData.append('icon', uploadedIcon);
-
-      await tagsApi.create(formData);
+      setIsLoading(true);
+      await api.createTag({
+        name: values.name,
+      });
+      message.success('Тег успешно создан');
       setIsModalVisible(false);
-      form.resetFields();
-      setUploadedIcon(null);
-      message.success('Тег добавлен');
       fetchTags();
     } catch (error) {
-      if (error instanceof Error) {
-        message.error('Не удалось добавить тег');
-      }
+      console.error('Error creating tag:', error);
+      message.error('Не удалось создать тег');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const handleUpload = (file: File) => {
-    setUploadedIcon(file);
-    // Создаем превью для отображения
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const preview = document.getElementById('icon-preview') as HTMLImageElement;
-      if (preview && e.target?.result) {
-        preview.src = e.target.result as string;
-      }
-    };
-    reader.readAsDataURL(file);
-    return false; // Предотвращаем автоматическую загрузку Upload компонента
+    */
+    // Временно просто показываем сообщение
+    message.info('Функция создания временно отключена');
+    setIsModalVisible(false);
   };
 
   const columns = [
@@ -115,15 +87,18 @@ export const Tags: React.FC = () => {
       render: (name: string, record: Tag) => (
         <div className="flex justify-between items-center py-3">
           <div className="flex items-center gap-3">
-            <img 
-              src={record.icon} 
-              alt={name} 
-              className="w-6 h-6 object-contain"
-              onError={(e) => {
-                // Заглушка при ошибке загрузки изображения
-                (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9IiNFNUU3RUIiLz48L3N2Zz4=';
-              }}
-            />
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img 
+                src={record.icon}
+                alt={name} 
+                className="w-full h-full object-contain"
+                style={{ color: 'currentColor' }}
+                onError={(e) => {
+                  // Заглушка при ошибке загрузки изображения
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9IiNFNUU3RUIiLz48L3N2Zz4=';
+                }}
+              />
+            </div>
             <span className="text-lg">{name}</span>
           </div>
           <Button 
@@ -148,7 +123,7 @@ export const Tags: React.FC = () => {
     <div className="h-full bg-white">
       <PageHeader 
         title="Теги" 
-        action={addButton}
+        rightIcon={addButton}
       />
 
       {/* Content */}
@@ -167,42 +142,17 @@ export const Tags: React.FC = () => {
       <Modal
         title="Добавить тег"
         open={isModalVisible}
-        onOk={handleModalOk}
+        onOk={form.submit}
         onCancel={() => setIsModalVisible(false)}
         okText="Добавить"
         cancelText="Отмена"
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="name"
             rules={[{ required: true, message: 'Введите название тега' }]}
           >
             <Input placeholder="Название тега" />
-          </Form.Item>
-          <Form.Item
-            label="Иконка"
-            required
-            tooltip="Рекомендуемый размер: 24x24 пикселя"
-          >
-            <div className="flex items-center gap-4">
-              <Upload
-                accept="image/*"
-                showUploadList={false}
-                beforeUpload={handleUpload}
-              >
-                <Button icon={<UploadOutlined />}>Выбрать файл</Button>
-              </Upload>
-              {uploadedIcon && (
-                <div className="flex items-center gap-2">
-                  <img 
-                    id="icon-preview"
-                    alt="Preview" 
-                    className="w-6 h-6 object-contain"
-                  />
-                  <span className="text-sm text-gray-500">Иконка выбрана</span>
-                </div>
-              )}
-            </div>
           </Form.Item>
         </Form>
       </Modal>
