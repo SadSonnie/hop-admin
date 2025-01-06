@@ -53,6 +53,14 @@ interface Tag {
   // Add other tag properties here
 }
 
+interface CreatePlaceData {
+  name: string;
+  address: string;
+  category_id: number;
+  collection_ids?: number[];
+  tags_ids?: number[];
+}
+
 export const api = {
   // Пользователь
   sendUserData: () => apiRequest('/users', {
@@ -99,4 +107,56 @@ export const api = {
     },
     body: JSON.stringify({ id }),
   }),
+
+  // Места
+  createPlace(data: CreatePlaceData) {
+    return apiRequest('/places', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  },
+
+  getPlaces() {
+    return apiRequest('/places', {
+      method: 'GET',
+    }).then(response => {
+      // Ensure we return an array of places
+      if (response && typeof response === 'object') {
+        // If response is an object with a data/items/results field
+        const places = response.data || response.items || response.results || response;
+        // Ensure we return an array
+        return Array.isArray(places) ? places : [];
+      }
+      return [];
+    });
+  },
+
+  getPlace(id: number | string) {
+    return apiRequest(`/places/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  updatePlace(id: number | string, data: Partial<CreatePlaceData>) {
+    return apiRequest('/places', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id, ...data }),
+    });
+  },
+
+  deletePlace(id: number | string) {
+    return apiRequest('/places', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id }),
+    });
+  },
 };

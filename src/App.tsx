@@ -9,6 +9,7 @@ import PlacesList from './pages/feed/places/PlacesList';
 import FeedEditor from './pages/feed/places/FeedEditor';
 import LocationsList from './pages/locations/LocationsList';
 import AddLocation from './pages/locations/AddLocation';
+import EditLocation from './pages/locations/EditLocation';
 import { Categories } from './pages/categories/Categories';
 import { Tags } from './pages/tags/Tags';
 import PlaceDetailsView from './pages/placeDetails/PlaceDetailsView';
@@ -38,6 +39,7 @@ function App() {
           <Route path="/metrics/:id" element={<MetricDetail />} />
           <Route path="/locations" element={<LocationsList />} />
           <Route path="/locations/add" element={<AddLocation />} />
+          <Route path="/locations/edit/:id" element={<EditLocation />} />
           <Route path="/locations/pending" element={<PendingLocations />} />
           <Route path="/reviews/pending" element={<PendingReviews />} />
           <Route path="/feed" element={<FeedEditor />} />
