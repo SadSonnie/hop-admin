@@ -1,32 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Place, Tag } from '../../types';
+import { Place, BasePlace } from '../../types';
 import { mockTags } from '../../data/mockTags';
 import { Plus, X, MapPin, Image as ImageIcon } from 'lucide-react';
 import { api } from '../../utils/api';
+import { notification } from 'antd';
 
 interface Category {
   id: string;
   name: string;
 }
 
-interface LocationForm extends Omit<Place, 'id' | 'rating' | 'distance'> {
+// Расширяем базовый интерфейс необязательными полями для формы
+interface LocationForm extends Omit<BasePlace, 'id'> {
+  description?: string;
+  imageUrl?: string;
+  images?: string[];
+  isPremium?: boolean;
+  priceLevel?: number;
+  coordinates?: { lat: number; lng: number };
+  tags?: string[];
+  phone?: string;
   mainImage: File | null;
   additionalImages: File[];
-  tags: string[]; // Храним id тегов
 }
 
 const initialForm: LocationForm = {
   name: '',
-  description: '',
+  address: '',
   mainTag: '',
+  description: '',
   imageUrl: '',
   images: [],
   isPremium: false,
   priceLevel: 1,
   coordinates: { lat: 0, lng: 0 },
   tags: [],
-  address: '',
   phone: '',
   mainImage: null,
   additionalImages: []
@@ -36,22 +45,14 @@ export const AddLocation: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState<LocationForm>(initialForm);
   const [categories, setCategories] = useState<Category[]>([]);
-  // const [tags, setTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Загружаем категории
         const categoriesData = await api.getCategories();
         setCategories(categoriesData.items || []);
-
-        // Загрузка тегов (закомментировано пока используем моковые данные)
-        /*
-        const tagsData = await api.getTags();
-        setTags(tagsData.items || []);
-        */
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -64,9 +65,42 @@ export const AddLocation: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Здесь будет логика отправки данных на сервер
-    console.log('Form data:', form);
-    navigate('/locations');
+    
+    // Проверяем обязательные поля
+    if (!form.name || !form.address || !form.mainTag) {
+      notification.error({
+        message: 'Ошибка',
+        description: 'Пожалуйста, заполните все обязательные поля',
+      });
+      return;
+    }
+
+    try {
+      // Преобразуем теги в числовые id
+      const tags_ids = form.tags?.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) || [];
+
+      const placeData = {
+        name: form.name,
+        address: form.address,
+        category_id: parseInt(form.mainTag, 10),
+        ...(tags_ids.length > 0 && { tags_ids }),
+      };
+
+      await api.createPlace(placeData);
+      
+      notification.success({
+        message: 'Успешно',
+        description: 'Место успешно добавлено',
+      });
+
+      navigate('/locations');
+    } catch (error) {
+      console.error('Error creating place:', error);
+      notification.error({
+        message: 'Ошибка',
+        description: 'Произошла ошибка при создании места',
+      });
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isMain: boolean) => {
@@ -313,6 +347,9 @@ export const AddLocation: React.FC = () => {
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
+              required
+              value={form.address}
+              onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
               placeholder="Введите адрес"
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

@@ -3,4 +3,5 @@ export interface ManagementOption {
   path: string;
   count: number;
   icon: string;
+  fullWidth?: boolean;
 }

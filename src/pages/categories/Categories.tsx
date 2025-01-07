@@ -53,6 +53,7 @@ export const Categories: React.FC = () => {
       okText: 'Удалить',
       cancelText: 'Отмена',
       okButtonProps: {
+        className: 'bg-red-500 hover:bg-red-600',
         danger: true,
       },
       onOk: async () => {

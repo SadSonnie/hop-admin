@@ -3,8 +3,9 @@ import { ManagementGrid } from '../components/content/ManagementGrid';
 import { ManagementOption } from '../components/content/types';
 
 const managementOptions: ManagementOption[] = [
-  { title: 'Настроить ленту', path: '/feed', count: 0, icon: 'MdSettings' },
+  { title: 'Настроить ленту', path: '/feed', count: 0, icon: 'MdSettings', fullWidth: true },
   { title: 'Все места', path: '/locations', count: 0, icon: 'MdPlace' },
+  { title: 'Подборки', path: '/collections', count: 0, icon: 'MdCollections' },
   { title: 'Категории', path: '/categories', count: 0, icon: 'MdCategory' },
   { title: 'Теги', path: '/tags', count: 0, icon: 'MdTag' },
   { title: 'Статьи', path: '/articles', count: 0, icon: 'MdArticle' },

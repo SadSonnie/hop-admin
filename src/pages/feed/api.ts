@@ -63,7 +63,11 @@ const API = {
     
     // Удалить место из подборки
     removePlace: (collectionId: number, placeId: number): Promise<void> => 
-      DELETE(`/api/collections/${collectionId}/places/${placeId}`)
+      DELETE(`/api/collections/${collectionId}/places/${placeId}`),
+    
+    // Удалить подборку
+    deleteCollection: (id: number): Promise<void> =>
+      DELETE(`/api/collections/${id}`),
   },
 
   // Профиль

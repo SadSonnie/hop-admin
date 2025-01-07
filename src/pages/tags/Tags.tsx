@@ -39,6 +39,10 @@ export const Tags: React.FC = () => {
       ),
       okText: 'Удалить',
       cancelText: 'Отмена',
+      okButtonProps: {
+        className: 'bg-red-500 hover:bg-red-600',
+        danger: true,
+      },
       onOk: () => {
         // Закомментированный код удаления через API
         /*

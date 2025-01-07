@@ -1,37 +1,38 @@
 import { Place } from '../types';
-import { mockPlaces } from '../pages/locations/LocationsList';
+import { api } from '../utils/api';
 
 export const fetchAllPlaces = async (): Promise<Place[]> => {
-  // Имитация задержки API
-  await new Promise(resolve => setTimeout(resolve, 500));
-  console.log('Service - mockPlaces:', mockPlaces);
-  return mockPlaces || [];
+  return api.getPlaces();
 };
 
 export const fetchPlaceById = async (id: string | number): Promise<Place> => {
-  // Имитация задержки API
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const place = mockPlaces.find(p => p.id.toString() === id.toString());
-  if (!place) {
-    throw new Error('Place not found');
+  try {
+    const places = await api.getPlaces();
+    const place = places.find(p => p.id.toString() === id.toString());
+    if (!place) {
+      throw new Error('Place not found');
+    }
+    return place;
+  } catch (error) {
+    throw new Error(`Failed to fetch place: ${error}`);
   }
-  
-  return place;
 };
 
 // Начальные элементы ленты (для тестирования)
 export const fetchFeedItems = async () => {
-  // Имитация задержки API
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Возвращаем только два места для начального состояния ленты
-  return [
-    {
-      id: '1',
-      type: 'place',
-      order: 1,
-      data: mockPlaces[0]
+  try {
+    const places = await api.getPlaces();
+    if (places.length > 0) {
+      return [{
+        id: '1',
+        type: 'place',
+        order: 1,
+        data: places[0]
+      }];
     }
-  ];
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch feed items:', error);
+    return [];
+  }
 };

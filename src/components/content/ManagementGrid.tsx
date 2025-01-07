@@ -17,14 +17,16 @@ export const ManagementGrid: React.FC<Props> = ({ options }) => {
           <Link
             key={option.path}
             to={option.path}
-            className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+            className={`p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow ${
+              option.fullWidth ? 'col-span-2' : ''
+            }`}
           >
-            <div className="flex items-center mb-2">
+            <div className={`flex items-center mb-2 ${option.fullWidth ? 'justify-center' : ''}`}>
               {Icon && <Icon className="text-2xl text-blue-600 mr-2" />}
               <h2 className="font-medium">{option.title}</h2>
             </div>
             {option.count > 0 && (
-              <div className="text-sm text-gray-600">
+              <div className={`text-sm text-gray-600 ${option.fullWidth ? 'text-center' : ''}`}>
                 {option.count} {option.count === 1 ? 'элемент' : 'элементов'}
               </div>
             )}

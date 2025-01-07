@@ -10,6 +10,9 @@ import FeedEditor from './pages/feed/places/FeedEditor';
 import LocationsList from './pages/locations/LocationsList';
 import AddLocation from './pages/locations/AddLocation';
 import EditLocation from './pages/locations/EditLocation';
+import CollectionsList from './pages/collections/CollectionsList';
+import AddCollection from './pages/collections/AddCollection';
+import EditCollection from './pages/collections/EditCollection';
 import { Categories } from './pages/categories/Categories';
 import { Tags } from './pages/tags/Tags';
 import PlaceDetailsView from './pages/placeDetails/PlaceDetailsView';
@@ -41,6 +44,9 @@ function App() {
           <Route path="/locations/add" element={<AddLocation />} />
           <Route path="/locations/edit/:id" element={<EditLocation />} />
           <Route path="/locations/pending" element={<PendingLocations />} />
+          <Route path="/collections" element={<CollectionsList />} />
+          <Route path="/collections/add" element={<AddCollection />} />
+          <Route path="/collections/:id" element={<EditCollection />} />
           <Route path="/reviews/pending" element={<PendingReviews />} />
           <Route path="/feed" element={<FeedEditor />} />
           <Route path="/places" element={<PlacesList />} />

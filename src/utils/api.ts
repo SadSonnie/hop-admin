@@ -1,3 +1,5 @@
+import type { Place, Review, Category, Tag } from '../types';
+
 const isDevelopment = import.meta.env.DEV;
 const BASE_URL = import.meta.env.VITE_APP_URL;
 
@@ -43,6 +45,33 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
   return response.json();
 }
 
+interface GetFeedParams {
+  page?: number;
+  limit?: number;
+  sort?: 'newest' | 'popular' | 'nearest';
+}
+
+interface SearchParams {
+  query: string;
+  tags?: string[];
+  priceLevel?: number;
+  isPremium?: boolean;
+}
+
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+interface Collection {
+  id: number;
+  name: string;
+  description: string;
+  places_ids: number[];
+}
+
 interface Category {
   id: string;
   // Add other category properties here
@@ -67,8 +96,23 @@ export const api = {
     method: 'POST'
   }),
   
+  // Профиль
+  getProfile: (): Promise<UserProfile> => apiRequest('/profile'),
+  
+  updateProfile: (data: Partial<UserProfile>): Promise<UserProfile> => 
+    apiRequest('/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  getFavorites: (): Promise<Place[]> => apiRequest('/profile/favorites'),
+  
+  getReviews: (): Promise<Review[]> => apiRequest('/profile/reviews'),
+
   // Категории
   getCategories: () => apiRequest('/categories'),
+  
   createCategory: (data: Omit<Category, 'id'>) => apiRequest('/categories', {
     method: 'POST',
     headers: {
@@ -76,13 +120,15 @@ export const api = {
     },
     body: JSON.stringify(data),
   }),
-  updateCategory: (id: string, data: any) => apiRequest(`/categories/${id}`, {
+  
+  updateCategory: (id: string, data: Partial<Category>) => apiRequest(`/categories/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(data),
   }),
+  
   deleteCategory: (id: number) => apiRequest('/categories', {
     method: 'DELETE',
     headers: {
@@ -93,6 +139,7 @@ export const api = {
 
   // Теги
   getTags: () => apiRequest('/tags'),
+  
   createTag: (data: Omit<Tag, 'id'>) => apiRequest('/tags', {
     method: 'POST',
     headers: {
@@ -100,6 +147,7 @@ export const api = {
     },
     body: JSON.stringify(data),
   }),
+  
   deleteTag: (id: number) => apiRequest('/tags', {
     method: 'DELETE',
     headers: {
@@ -109,54 +157,124 @@ export const api = {
   }),
 
   // Места
-  createPlace(data: CreatePlaceData) {
-    return apiRequest('/places', {
+  createPlace: (data: CreatePlaceData) => apiRequest('/places', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }),
+
+  getPlaces: () => apiRequest('/places', {
+    method: 'GET',
+  }).then(response => {
+    if (response && typeof response === 'object') {
+      const places = response.data || response.items || response.results || response;
+      return Array.isArray(places) ? places : [];
+    }
+    return [];
+  }),
+
+  getPlace: (id: number | string) => apiRequest(`/places/${id}`, {
+    method: 'GET',
+  }),
+
+  updatePlace: (id: number | string, data: Partial<CreatePlaceData>) => apiRequest('/places', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, ...data }),
+  }),
+
+  deletePlace: (id: number | string) => apiRequest('/places', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id }),
+  }),
+
+  // Дополнительные методы для мест
+  getFeed: (params?: GetFeedParams): Promise<Place[]> => 
+    apiRequest('/feed', { params }),
+  
+  searchPlaces: (params: SearchParams): Promise<Place[]> => 
+    apiRequest('/places/search', { params }),
+  
+  addToFavorites: (placeId: number): Promise<void> => 
+    apiRequest('/places/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId }),
+    }),
+  
+  removeFromFavorites: (placeId: number): Promise<void> => 
+    apiRequest(`/places/favorites/${placeId}`, {
+      method: 'DELETE',
+    }),
+  
+  addReview: (placeId: number, review: Omit<Review, 'id' | 'date'>): Promise<Review> => 
+    apiRequest(`/places/${placeId}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(review),
+    }),
+
+  // Подборки
+  getCollections: (params?: { limit?: number; offset?: number }) => 
+    apiRequest('/collections', {
+      method: 'GET',
+      params,
+    }).then(response => response.items || []),
+
+  getCollection: (id: string | number) => 
+    apiRequest(`/collections/${id}`, {
+      method: 'GET',
+    }),
+
+  createCollection: (data: { name: string; description: string; places_ids?: number[] }) => 
+    apiRequest('/collections', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
-    });
-  },
+    }),
 
-  getPlaces() {
-    return apiRequest('/places', {
-      method: 'GET',
-    }).then(response => {
-      // Ensure we return an array of places
-      if (response && typeof response === 'object') {
-        // If response is an object with a data/items/results field
-        const places = response.data || response.items || response.results || response;
-        // Ensure we return an array
-        return Array.isArray(places) ? places : [];
-      }
-      return [];
-    });
-  },
-
-  getPlace(id: number | string) {
-    return apiRequest(`/places/${id}`, {
-      method: 'GET',
-    });
-  },
-
-  updatePlace(id: number | string, data: Partial<CreatePlaceData>) {
-    return apiRequest('/places', {
+  updateCollection: (id: number, data: Partial<{ name: string; description: string; places_ids: number[] }>) => 
+    apiRequest('/collections', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ id, ...data }),
-    });
-  },
+    }),
 
-  deletePlace(id: number | string) {
-    return apiRequest('/places', {
+  deleteCollection: (id: number) => apiRequest('/collections', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id }),
+  }),
+
+  addPlaceToCollection: (collectionId: number, placeId: number): Promise<void> =>
+    apiRequest(`/collections/${collectionId}/places/${placeId}`, {
+      method: 'POST',
+    }),
+
+  removePlaceFromCollection: (collectionId: number, placeId: number): Promise<void> =>
+    apiRequest(`/collections/${collectionId}/places/${placeId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id }),
-    });
-  },
+    }),
+
+  getAllPlaces: () => apiRequest('/places', {
+    method: 'GET',
+  }).then(response => {
+    const places = response.data || response.items || response.results || response;
+    return Array.isArray(places) ? places : [];
+  }),
 };
+
+export default api;
