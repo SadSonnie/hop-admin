@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Layers, X } from 'lucide-react';
 import type { Place, Collection } from '../../../types';
+import { api } from '../../../utils/api';
 
 interface AddContentModalProps {
   isOpen: boolean;
@@ -18,6 +19,33 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
   availablePlaces
 }) => {
   const [selectedType, setSelectedType] = useState<'place' | 'collection' | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Сбрасываем selectedType при закрытии модального окна
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedType(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedType === 'collection') {
+      loadCollections();
+    }
+  }, [selectedType]);
+
+  const loadCollections = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getCollections();
+      setCollections(response);
+    } catch (error) {
+      console.error('Failed to load collections:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   console.log('Modal availablePlaces:', availablePlaces);
 
@@ -32,7 +60,7 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
               ? 'Добавить в ленту'
               : selectedType === 'place'
               ? 'Выберите место'
-              : 'Создать подборку'}
+              : 'Выберите подборку'}
           </h2>
           <button
             onClick={onClose}
@@ -63,9 +91,9 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
               >
                 <Layers className="text-blue-500" />
                 <div className="text-left">
-                  <div className="font-medium">Создать подборку</div>
+                  <div className="font-medium">Добавить подборку</div>
                   <div className="text-sm text-gray-500">
-                    Объедините несколько мест
+                    Выберите подборку из списка
                   </div>
                 </div>
               </button>
@@ -102,8 +130,39 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-8">
-              Функция создания подборок находится в разработке
+            <div className="space-y-4">
+              {loading ? (
+                <div className="text-center text-gray-500 py-8">
+                  Загрузка подборок...
+                </div>
+              ) : collections.length > 0 ? (
+                collections.map((collection) => (
+                  <button
+                    key={collection.id}
+                    onClick={() => {
+                      onAddCollection(collection);
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-gray-50"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <Layers className="text-blue-500" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium">{collection.name}</div>
+                      {collection.description && (
+                        <div className="text-sm text-gray-500">
+                          {collection.description}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  Нет доступных подборок
+                </div>
+              )}
             </div>
           )}
         </div>

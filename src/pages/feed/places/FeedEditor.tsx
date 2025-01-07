@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { PenSquare, Plus, ArrowUp, ArrowDown, Check } from 'lucide-react';
+import { PenSquare, Plus, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
 import PlaceCard from './PlaceCard';
 import FeaturedCollection from './FeaturedCollection';
 import { fetchFeedItems, fetchAllPlaces } from '../../../services/feedService';
 import type { Place, FeedItem, Collection } from '../../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AddContentModal } from './AddContentModal';
+import { api } from '../../../utils/api';
 
-const FeedItem: React.FC<{
+const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }: {
   item: FeedItem;
   index: number;
   isEditing: boolean;
-  isFirst: boolean;
-  isLast: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-}> = React.memo(({ item, index, isEditing, isFirst, isLast, onMoveUp, onMoveDown }) => {
+  feedItems: FeedItem[];
+  setFeedItems: (items: FeedItem[]) => void;
+}) => {
+  const moveItem = (toIndex: number) => {
+    const newItems = [...feedItems];
+    const [movedItem] = newItems.splice(index, 1);
+    newItems.splice(toIndex, 0, movedItem);
+    setFeedItems(newItems);
+  };
+
   return (
     <motion.div 
       layout
@@ -26,33 +32,50 @@ const FeedItem: React.FC<{
       className="relative mb-4"
     >
       {isEditing && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex gap-1">
+        <div className="absolute -right-14 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-100 py-2 px-1.5">
           <button
-            onClick={onMoveUp}
-            disabled={isFirst}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+            onClick={() => index > 0 && moveItem(index - 1)}
+            className={`p-1 rounded transition-colors ${index > 0 ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-not-allowed'}`}
+            title={index > 0 ? "Переместить вверх" : "Нельзя переместить вверх"}
+            disabled={!index > 0}
           >
-            <ArrowUp className="w-5 h-5 text-gray-400" />
+            <ArrowUp className={`w-5 h-5 ${index > 0 ? '' : 'text-gray-300'}`} />
           </button>
+          
           <button
-            onClick={onMoveDown}
-            disabled={isLast}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+            onClick={() => {
+              const newItems = [...feedItems];
+              newItems.splice(index, 1);
+              setFeedItems(newItems);
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title="Удалить"
           >
-            <ArrowDown className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-red-500" />
+          </button>
+
+          <button
+            onClick={() => index < feedItems.length - 1 && moveItem(index + 1)}
+            className={`p-1 rounded transition-colors ${index < feedItems.length - 1 ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-not-allowed'}`}
+            title={index < feedItems.length - 1 ? "Переместить вниз" : "Нельзя переместить вниз"}
+            disabled={!(index < feedItems.length - 1)}
+          >
+            <ArrowDown className={`w-5 h-5 ${index < feedItems.length - 1 ? '' : 'text-gray-300'}`} />
           </button>
         </div>
       )}
-      <div className={isEditing ? 'pr-20' : ''}>
-        {item.type === 'place' ? (
-          <PlaceCard {...item.data as Place} />
+      <div>
+        {item.type === 'collection' ? (
+          <FeaturedCollection collection={item.data} />
         ) : (
-          <FeaturedCollection collection={item.data as Collection} />
+          <PlaceCard place={item.data} />
         )}
       </div>
     </motion.div>
   );
 });
+
+FeedItem.displayName = 'FeedItem';
 
 const AddNewPlaceButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   return (
@@ -62,7 +85,7 @@ const AddNewPlaceButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
         className="w-full p-4 flex items-center justify-center gap-2 text-gray-500 hover:bg-gray-50 transition-colors"
       >
         <Plus className="w-5 h-5" />
-        <span>Добавить место</span>
+        <span>Добавить</span>
       </button>
     </div>
   );
@@ -77,21 +100,22 @@ const FeedEditor: React.FC = () => {
   const [availablePlaces, setAvailablePlaces] = useState<Place[]>([]);
 
   useEffect(() => {
-    const loadFeed = async () => {
+    const fetchFeed = async () => {
       try {
         setLoading(true);
-        setError(null);
-        const items = await fetchFeedItems();
-        setFeedItems(items.sort((a, b) => a.order - b.order));
+        const response = await api.getFeed();
+        setFeedItems(response.items.map(item => ({
+          ...item,
+          id: item.id.toString() // Преобразуем числовой ID в строку для DnD
+        })));
       } catch (error) {
-        console.error('Failed to load feed:', error);
-        setError('Failed to load feed items');
+        console.error('Failed to fetch feed:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadFeed();
+    fetchFeed();
   }, []);
 
   // Загрузка доступных мест при открытии модального окна
@@ -142,8 +166,26 @@ const FeedEditor: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleAddCollection = () => {
-    // TODO: Implement collection creation
+  const handleAddCollection = async (collection: Collection) => {
+    try {
+      // Получаем места для подборки
+      const places = await Promise.all(
+        (collection.places_ids || []).map(id => api.getPlace(id))
+      );
+      
+      const newItem: FeedItem = {
+        id: `${Date.now()}`,
+        type: 'collection',
+        order: feedItems.length + 1,
+        data: {
+          ...collection,
+          places // Добавляем места в подборку
+        },
+      };
+      setFeedItems(prevItems => [...prevItems, newItem]);
+    } catch (error) {
+      console.error('Failed to load places for collection:', error);
+    }
     setIsModalOpen(false);
   };
 
@@ -151,14 +193,7 @@ const FeedEditor: React.FC = () => {
     const newItems = [...feedItems];
     const [movedItem] = newItems.splice(fromIndex, 1);
     newItems.splice(toIndex, 0, movedItem);
-
-    // Update order numbers
-    const updatedItems = newItems.map((item, index) => ({
-      ...item,
-      order: index + 1,
-    }));
-
-    setFeedItems(updatedItems);
+    setFeedItems(newItems);
     // TODO: Save new order to backend
   };
 
@@ -183,7 +218,37 @@ const FeedEditor: React.FC = () => {
       <div className="sticky top-0 z-10 bg-white p-4 flex justify-between items-center shadow-sm">
         <h1 className="text-2xl font-semibold">Лента</h1>
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={async () => {
+            if (isEditing) {
+              try {
+                // Преобразуем все элементы ленты в нужный формат
+                const items = feedItems.map(item => ({
+                  id: parseInt(item.id),
+                  type: item.type,
+                  data: item.type === 'collection' 
+                    ? {
+                        title: item.data.title || item.data.name,
+                        places: item.data.places.map(place => ({
+                          id: place.id,
+                          name: place.name,
+                          address: place.address
+                        }))
+                      }
+                    : {
+                        name: item.data.name,
+                        address: item.data.address
+                      }
+                }));
+
+                await api.saveFeed(items);
+                console.log('Feed saved successfully');
+              } catch (error) {
+                console.error('Failed to save feed:', error);
+                return; // Не выходим из режима редактирования при ошибке
+              }
+            }
+            setIsEditing(!isEditing);
+          }}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           {isEditing ? (
@@ -195,33 +260,22 @@ const FeedEditor: React.FC = () => {
       </div>
 
       <div className="flex-1 bg-[#fafafa] overflow-y-auto">
-        <div className="px-4 py-4">
+        <div className={`container mx-auto p-4 ${isEditing ? 'pr-20' : ''}`}>
           <AnimatePresence>
             {feedItems.map((item, index) => (
               <FeedItem
-                key={`item-${item.id}`}
+                key={`${item.type}-${item.id}`}
                 item={item}
                 index={index}
                 isEditing={isEditing}
-                isFirst={index === 0}
-                isLast={index === feedItems.length - 1}
-                onMoveUp={() => moveItem(index, index - 1)}
-                onMoveDown={() => moveItem(index, index + 1)}
+                feedItems={feedItems}
+                setFeedItems={setFeedItems}
               />
             ))}
-            {isEditing && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <AddNewPlaceButton
-                  onClick={() => setIsModalOpen(true)}
-                />
-              </motion.div>
-            )}
           </AnimatePresence>
+          {isEditing && (
+            <AddNewPlaceButton onClick={() => setIsModalOpen(true)} />
+          )}
         </div>
       </div>
 

@@ -37,7 +37,16 @@ export interface Place {
   isPremium?: boolean;
 }
 
+export interface Collection {
+  id: number;
+  name: string;
+  title?: string;
+  description?: string;
+  places: Place[];
+}
+
 // Вспомогательный тип для создания новых объектов
 export type CreatePlaceDto = Omit<Place, 'id'>;
 export type CreateCategoryDto = Omit<Category, 'id'>;
 export type CreateTagDto = Omit<Tag, 'id'>;
+export type CreateCollectionDto = Omit<Collection, 'id'>;

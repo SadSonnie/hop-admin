@@ -90,6 +90,26 @@ interface CreatePlaceData {
   tags_ids?: number[];
 }
 
+interface FeedItem {
+  id: number;
+  type: 'collection' | 'place';
+  data: {
+    title?: string;
+    name?: string;
+    address?: string;
+    places?: Array<{
+      id: number;
+      name: string;
+      address: string;
+    }>;
+  };
+}
+
+interface FeedResponse {
+  items: FeedItem[];
+  total: number;
+}
+
 export const api = {
   // Пользователь
   sendUserData: () => apiRequest('/users', {
@@ -196,9 +216,31 @@ export const api = {
   }),
 
   // Дополнительные методы для мест
-  getFeed: (params?: GetFeedParams): Promise<Place[]> => 
+  getFeed: (params?: GetFeedParams): Promise<FeedResponse> => 
     apiRequest('/feed', { params }),
   
+  saveFeed: (items: FeedItem[]): Promise<void> => {
+    return apiRequest('/feed', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ items }),
+    }).catch(error => {
+      if (error.message.includes('404')) {
+        // Если лента не найдена, создаем новую через POST
+        return apiRequest('/feed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ items }),
+        });
+      }
+      throw error;
+    });
+  },
+
   searchPlaces: (params: SearchParams): Promise<Place[]> => 
     apiRequest('/places/search', { params }),
   
