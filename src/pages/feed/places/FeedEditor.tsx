@@ -16,7 +16,10 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
   setFeedItems: (items: FeedItem[]) => void;
 }) => {
   const moveItem = (toIndex: number) => {
-    const newItems = [...feedItems];
+    const newItems = feedItems.map(item => ({
+      ...item,
+      data: { ...item.data } // Глубокое копирование данных
+    }));
     const [movedItem] = newItems.splice(index, 1);
     newItems.splice(toIndex, 0, movedItem);
     setFeedItems(newItems);
@@ -44,7 +47,10 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
           
           <button
             onClick={() => {
-              const newItems = [...feedItems];
+              const newItems = feedItems.map(item => ({
+                ...item,
+                data: { ...item.data } // Глубокое копирование данных
+              }));
               newItems.splice(index, 1);
               setFeedItems(newItems);
             }}
@@ -104,10 +110,8 @@ const FeedEditor: React.FC = () => {
       try {
         setLoading(true);
         const response = await api.getFeed();
-        setFeedItems(response.items.map(item => ({
-          ...item,
-          id: item.id.toString() // Преобразуем числовой ID в строку для DnD
-        })));
+        // Сохраняем все данные как есть, без преобразований
+        setFeedItems(response.items);
       } catch (error) {
         console.error('Failed to fetch feed:', error);
       } finally {
@@ -221,24 +225,17 @@ const FeedEditor: React.FC = () => {
           onClick={async () => {
             if (isEditing) {
               try {
-                // Преобразуем все элементы ленты в нужный формат
+                // Отправляем элементы ленты, сохраняя ID из оригинальных данных
                 const items = feedItems.map(item => ({
-                  id: parseInt(item.id),
                   type: item.type,
-                  data: item.type === 'collection' 
-                    ? {
-                        title: item.data.title || item.data.name,
-                        places: item.data.places.map(place => ({
-                          id: place.id,
-                          name: place.name,
-                          address: place.address
-                        }))
-                      }
-                    : {
-                        name: item.data.name,
-                        address: item.data.address
-                      }
+                  data: {
+                    ...item.data,
+                    id: parseInt(item.id) // Используем ID из item для всех типов
+                  }
                 }));
+
+                console.log('Saving feed items:', items);
+                console.log('Original feedItems:', feedItems);
 
                 await api.saveFeed(items);
                 console.log('Feed saved successfully');
