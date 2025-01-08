@@ -7,7 +7,7 @@ import { api } from '../../utils/api';
 import { notification } from 'antd';
 
 interface Category {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -23,6 +23,7 @@ interface LocationForm extends Omit<BasePlace, 'id'> {
   phone?: string;
   mainImage: File | null;
   additionalImages: File[];
+  mainTag: string;
 }
 
 const initialForm: LocationForm = {
@@ -59,10 +60,19 @@ export const EditLocation: React.FC = () => {
           api.getPlace(id)
         ]);
         
-        setCategories(categoriesData.items || []);
+        console.log('Categories data:', categoriesData);
+        console.log('Place data:', placeData);
+        
+        // Обрабатываем категории, учитывая возможные форматы данных
+        const processedCategories = Array.isArray(categoriesData) 
+          ? categoriesData 
+          : categoriesData.items || categoriesData.data || [];
+        
+        console.log('Processed categories:', processedCategories);
+        setCategories(processedCategories);
         
         // Преобразуем данные места в формат формы
-        setForm({
+        const formData = {
           name: placeData.name || '',
           address: placeData.address || '',
           mainTag: placeData.category_id?.toString() || '',
@@ -76,7 +86,10 @@ export const EditLocation: React.FC = () => {
           phone: placeData.phone || '',
           mainImage: null,
           additionalImages: []
-        });
+        };
+        
+        console.log('Form data:', formData);
+        setForm(formData);
       } catch (error) {
         console.error('Error fetching data:', error);
         notification.error({
@@ -109,13 +122,24 @@ export const EditLocation: React.FC = () => {
       // Преобразуем теги в числовые id
       const tags_ids = form.tags?.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) || [];
 
+      // Преобразуем mainTag в числовой id
+      const category_id = parseInt(form.mainTag, 10);
+      if (isNaN(category_id)) {
+        notification.error({
+          message: 'Ошибка',
+          description: 'Некорректный ID категории',
+        });
+        return;
+      }
+
       const placeData = {
         name: form.name,
         address: form.address,
-        category_id: parseInt(form.mainTag, 10),
+        category_id,
         ...(tags_ids.length > 0 && { tags_ids }),
       };
 
+      console.log('Saving place data:', placeData);
       await api.updatePlace(id, placeData);
       
       notification.success({
@@ -271,9 +295,9 @@ export const EditLocation: React.FC = () => {
                 <button
                   key={category.id}
                   type="button"
-                  onClick={() => setForm(prev => ({ ...prev, mainTag: category.id }))}
+                  onClick={() => setForm(prev => ({ ...prev, mainTag: category.id.toString() }))}
                   className={`px-3 py-2 rounded-lg text-left text-sm transition-all ${
-                    form.mainTag === category.id
+                    form.mainTag === category.id.toString()
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}

@@ -7,6 +7,7 @@ import type { Place, FeedItem, Collection } from '../../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AddContentModal } from './AddContentModal';
 import { api } from '../../../utils/api';
+import { useCategories } from '../../../hooks/useCategories';
 
 const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }: {
   item: FeedItem;
@@ -16,14 +17,13 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
   setFeedItems: (items: FeedItem[]) => void;
 }) => {
   const moveItem = (toIndex: number) => {
-    const newItems = feedItems.map(item => ({
-      ...item,
-      data: { ...item.data } // Глубокое копирование данных
-    }));
+    const newItems = feedItems.map(item => ({ ...item }));
     const [movedItem] = newItems.splice(index, 1);
     newItems.splice(toIndex, 0, movedItem);
     setFeedItems(newItems);
   };
+
+  const { getCategoryName } = useCategories();
 
   return (
     <motion.div 
@@ -47,10 +47,7 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
           
           <button
             onClick={() => {
-              const newItems = feedItems.map(item => ({
-                ...item,
-                data: { ...item.data } // Глубокое копирование данных
-              }));
+              const newItems = feedItems.map(item => ({ ...item }));
               newItems.splice(index, 1);
               setFeedItems(newItems);
             }}
@@ -74,7 +71,18 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
         {item.type === 'collection' ? (
           <FeaturedCollection collection={item.data} />
         ) : (
-          <PlaceCard place={item.data} />
+          <PlaceCard 
+            id={parseInt(item.id)}
+            name={item.data.name}
+            address={item.data.address}
+            category_id={item.data.category_id}
+            imageUrl={item.data.imageUrl} 
+            description={item.data.description}
+            rating={item.data.rating}
+            distance={item.data.distance}
+            isPremium={item.data.isPremium}
+            priceLevel={item.data.priceLevel}
+          />
         )}
       </div>
     </motion.div>
@@ -110,10 +118,28 @@ const FeedEditor: React.FC = () => {
       try {
         setLoading(true);
         const response = await api.getFeed();
-        // Сохраняем все данные как есть, без преобразований
-        setFeedItems(response.items);
+        
+        // Получаем актуальную информацию о каждом месте
+        const updatedItems = await Promise.all(
+          response.items.map(async (item) => {
+            if (item.type === 'place') {
+              try {
+                const placeData = await api.getPlace(item.data.id || item.id);
+                return {
+                  ...item,
+                  data: placeData
+                };
+              } catch {
+                return item;
+              }
+            }
+            return item;
+          })
+        );
+
+        setFeedItems(updatedItems);
       } catch (error) {
-        console.error('Failed to fetch feed:', error);
+        setError('Failed to fetch feed');
       } finally {
         setLoading(false);
       }
@@ -122,35 +148,23 @@ const FeedEditor: React.FC = () => {
     fetchFeed();
   }, []);
 
-  // Загрузка доступных мест при открытии модального окна
   useEffect(() => {
     const loadAvailablePlaces = async () => {
       try {
         const allPlaces = await fetchAllPlaces();
-        console.log('All places loaded:', allPlaces);
-        
-        // Фильтруем места, которые уже есть в ленте
         const existingPlaceIds = new Set(
           feedItems
             .filter(item => item.type === 'place')
-            .map(item => {
-              const placeId = (item.data as Place).id;
-              console.log('Existing place ID:', placeId);
-              return placeId;
-            })
+            .map(item => item.data.id)
         );
-        console.log('Existing place IDs set:', existingPlaceIds);
 
-        const filtered = allPlaces.filter(place => {
-          const shouldInclude = !existingPlaceIds.has(place.id);
-          console.log(`Place ${place.id} (${place.name}) should be included:`, shouldInclude);
-          return shouldInclude;
-        });
+        const filtered = allPlaces
+          .filter(place => !existingPlaceIds.has(place.id))
+          .map(place => ({ ...place }));
         
-        console.log('Filtered places:', filtered);
         setAvailablePlaces(filtered);
-      } catch (error) {
-        console.error('Failed to load available places:', error);
+      } catch {
+        setAvailablePlaces([]);
       }
     };
 
@@ -161,10 +175,10 @@ const FeedEditor: React.FC = () => {
 
   const handleAddPlace = (place: Place) => {
     const newItem: FeedItem = {
-      id: `${Date.now()}`,
+      id: place.id,
       type: 'place',
       order: feedItems.length + 1,
-      data: place,
+      data: place
     };
     setFeedItems(prevItems => [...prevItems, newItem]);
     setIsModalOpen(false);
@@ -172,23 +186,21 @@ const FeedEditor: React.FC = () => {
 
   const handleAddCollection = async (collection: Collection) => {
     try {
-      // Получаем места для подборки
       const places = await Promise.all(
         (collection.places_ids || []).map(id => api.getPlace(id))
       );
-      
       const newItem: FeedItem = {
         id: `${Date.now()}`,
         type: 'collection',
         order: feedItems.length + 1,
         data: {
           ...collection,
-          places // Добавляем места в подборку
+          places
         },
       };
       setFeedItems(prevItems => [...prevItems, newItem]);
-    } catch (error) {
-      console.error('Failed to load places for collection:', error);
+    } catch {
+      // Игнорируем ошибку, просто не добавляем коллекцию
     }
     setIsModalOpen(false);
   };
@@ -225,23 +237,15 @@ const FeedEditor: React.FC = () => {
           onClick={async () => {
             if (isEditing) {
               try {
-                // Отправляем элементы ленты, сохраняя ID из оригинальных данных
                 const items = feedItems.map(item => ({
+                  id: item.id,
                   type: item.type,
-                  data: {
-                    ...item.data,
-                    id: parseInt(item.id) // Используем ID из item для всех типов
-                  }
+                  data: item.data
                 }));
-
-                console.log('Saving feed items:', items);
-                console.log('Original feedItems:', feedItems);
-
                 await api.saveFeed(items);
-                console.log('Feed saved successfully');
               } catch (error) {
                 console.error('Failed to save feed:', error);
-                return; // Не выходим из режима редактирования при ошибке
+                return;
               }
             }
             setIsEditing(!isEditing);

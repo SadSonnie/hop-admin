@@ -91,14 +91,16 @@ interface CreatePlaceData {
 }
 
 interface FeedItem {
-  id: number;
+  id: string | number;
   type: 'collection' | 'place';
   data: {
+    id?: string | number;
     title?: string;
     name?: string;
     address?: string;
+    category_id?: number;
     places?: Array<{
-      id: number;
+      id: string | number;
       name: string;
       address: string;
     }>;
@@ -133,6 +135,7 @@ export const api = {
   // Категории
   getCategories: () => apiRequest('/categories'),
   
+
   createCategory: (data: Omit<Category, 'id'>) => apiRequest('/categories', {
     method: 'POST',
     headers: {
@@ -177,26 +180,61 @@ export const api = {
   }),
 
   // Места
-  createPlace: (data: CreatePlaceData) => apiRequest('/places', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  }),
+  createPlace: (place: Place): Promise<Place> => {
+    const placeData = {
+      name: place.name,
+      address: place.address,
+      category_id: parseInt(place.category_id?.toString() || '0'),
+      tags_ids: place.tags_ids || [],
+      description: place.description || '',
+      isPremium: place.isPremium || false,
+      priceLevel: place.priceLevel || 1,
+      coordinates: place.coordinates || { lat: 0, lng: 0 },
+      phone: place.phone || ''
+    };
 
-  getPlaces: () => apiRequest('/places', {
-    method: 'GET',
-  }).then(response => {
-    if (response && typeof response === 'object') {
-      const places = response.data || response.items || response.results || response;
-      return Array.isArray(places) ? places : [];
-    }
-    return [];
-  }),
+    console.log('Creating place with data:', JSON.stringify(placeData, null, 2));
+    
+    return apiRequest('/places', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(placeData)
+    });
+  },
+
+  getPlaces: (): Promise<Place[]> => {
+    return apiRequest('/places')
+      .then(response => {
+        // Получаем массив мест из ответа
+        let places = response;
+        if (response && typeof response === 'object') {
+          places = response.data || response.items || response.results || response;
+        }
+        
+        // Убеждаемся, что у нас массив
+        if (!Array.isArray(places)) {
+          return [];
+        }
+
+        // Преобразуем category_id в число для каждого места
+        return places.map(place => ({
+          ...place,
+          category_id: place.category_id != null ? Number(place.category_id) : undefined
+        }));
+      });
+  },
 
   getPlace: (id: number | string) => apiRequest(`/places/${id}`, {
     method: 'GET',
+  }).then(response => {
+    const data = response.data || response;
+    return {
+      ...data,
+      id: data.id || id,
+      category_id: data.category_id
+    };
   }),
 
   updatePlace: (id: number | string, data: Partial<CreatePlaceData>) => apiRequest('/places', {
@@ -204,7 +242,17 @@ export const api = {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ id, ...data }),
+    body: JSON.stringify({ 
+      id,
+      ...data,
+      category_id: data.category_id ? parseInt(data.category_id.toString()) : undefined
+    }),
+  }).then(response => {
+    const responseData = response.data || response;
+    return {
+      ...responseData,
+      category_id: responseData.category_id || responseData.mainTag // Поддержка обоих форматов
+    };
   }),
 
   deletePlace: (id: number | string) => apiRequest('/places', {
@@ -216,25 +264,67 @@ export const api = {
   }),
 
   // Дополнительные методы для мест
-  getFeed: (params?: GetFeedParams): Promise<FeedResponse> => 
-    apiRequest('/feed', { params }),
-  
+  getFeed: () => {
+    return apiRequest('/feed')
+      .then(response => {
+        const items = response.items || [];
+        return {
+          items: items.map((item: any) => {
+            if (item.type === 'place' && item.data) {
+              // Сохраняем все поля места и его category_id
+              return {
+                id: item.id,
+                type: item.type,
+                data: {
+                  ...item.data,
+                  id: item.data.id || item.id,
+                  category_id: item.data.category_id
+                }
+              };
+            }
+            return item;
+          })
+        };
+      })
+      .catch(error => {
+        if (error.message.includes('404')) {
+          return { items: [] };
+        }
+        throw error;
+      });
+  },
+
   saveFeed: (items: FeedItem[]): Promise<void> => {
+    // Преобразуем данные для сохранения
+    const transformedItems = items.map(item => {
+      if (item.type === 'place') {
+        return {
+          id: item.id,
+          type: item.type,
+          data: {
+            ...item.data,
+            id: item.data.id || item.id,
+            category_id: item.data.category_id
+          }
+        };
+      }
+      return item;
+    });
+
     return apiRequest('/feed', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items: transformedItems }),
     }).catch(error => {
       if (error.message.includes('404')) {
-        // Если лента не найдена, создаем новую через POST
         return apiRequest('/feed', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ items }),
+          body: JSON.stringify({ items: transformedItems }),
         });
       }
       throw error;
@@ -315,7 +405,10 @@ export const api = {
     method: 'GET',
   }).then(response => {
     const places = response.data || response.items || response.results || response;
-    return Array.isArray(places) ? places : [];
+    return Array.isArray(places) ? places.map(place => ({
+      ...place,
+      category_id: place.category_id || place.mainTag // Поддержка обоих форматов
+    })) : [];
   }),
 };
 

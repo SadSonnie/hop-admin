@@ -83,7 +83,12 @@ export const AddLocation: React.FC = () => {
         name: form.name,
         address: form.address,
         category_id: parseInt(form.mainTag, 10),
-        ...(tags_ids.length > 0 && { tags_ids }),
+        tags_ids: tags_ids.length > 0 ? tags_ids : undefined,
+        description: form.description || '',
+        isPremium: form.isPremium || false,
+        priceLevel: form.priceLevel || 1,
+        coordinates: form.coordinates || { lat: 0, lng: 0 },
+        phone: form.phone || ''
       };
 
       await api.createPlace(placeData);

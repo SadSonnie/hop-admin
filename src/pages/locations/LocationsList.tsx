@@ -19,8 +19,7 @@ const LocationsList: React.FC = () => {
       setError(null);
       const response = await api.getPlaces();
       setPlaces(response);
-    } catch (err) {
-      console.error('Failed to load places:', err);
+    } catch {
       setError('Failed to load places');
     } finally {
       setLoading(false);

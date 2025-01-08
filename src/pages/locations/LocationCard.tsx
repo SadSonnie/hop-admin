@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star } from 'lucide-react';
 import { Place } from '../../types';
+import { useCategories } from '../../hooks/useCategories';
 
 interface LocationCardProps extends Place {
   onClick?: () => void;
@@ -11,6 +12,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
   id,
   name, 
   mainTag,
+  category_id,
   description, 
   rating, 
   imageUrl, 
@@ -19,6 +21,9 @@ const LocationCard: React.FC<LocationCardProps> = ({
   onClick,
   onDelete
 }) => {
+  const { getCategoryName } = useCategories();
+  const categoryName = getCategoryName(category_id);
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering onClick of the card
     if (onDelete) {
@@ -85,7 +90,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
 
       {/* Информация */}
       <div className="p-4">
-        <h3 className="text-lg font-medium mb-1">{`${mainTag} ${name}`}</h3>
+        <h3 className="text-lg font-medium mb-1">{`${categoryName || ''} ${name}`}</h3>
         <p className="text-sm opacity-80">{description}</p>
       </div>
     </div>
