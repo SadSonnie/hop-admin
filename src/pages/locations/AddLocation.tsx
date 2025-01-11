@@ -76,6 +76,8 @@ export const AddLocation: React.FC = () => {
     }
 
     try {
+      setIsLoading(true);
+
       // Преобразуем теги в числовые id
       const tags_ids = form.tags?.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) || [];
 
@@ -87,11 +89,23 @@ export const AddLocation: React.FC = () => {
         description: form.description || '',
         isPremium: form.isPremium || false,
         priceLevel: form.priceLevel || 1,
-        coordinates: form.coordinates || { lat: 0, lng: 0 },
+        coordinates: form.coordinates ? {
+          latitude: form.coordinates.lat,
+          longitude: form.coordinates.lng
+        } : undefined,
         phone: form.phone || ''
       };
 
-      await api.createPlace(placeData);
+      // Собираем все фотографии в один массив
+      const photos: File[] = [];
+      if (form.mainImage) {
+        photos.push(form.mainImage);
+      }
+      if (form.additionalImages?.length) {
+        photos.push(...form.additionalImages);
+      }
+
+      await api.createPlace(placeData, photos);
       
       notification.success({
         message: 'Успешно',
@@ -103,8 +117,10 @@ export const AddLocation: React.FC = () => {
       console.error('Error creating place:', error);
       notification.error({
         message: 'Ошибка',
-        description: 'Произошла ошибка при создании места',
+        description: 'Не удалось создать место',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

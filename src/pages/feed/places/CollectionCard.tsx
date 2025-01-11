@@ -58,15 +58,16 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
   };
 
   return (
-    <div
+    <div 
       onClick={handleClick}
       className={`flex-shrink-0 w-64 mx-2 cursor-pointer rounded-2xl overflow-hidden ${
         place.isPremium ? 'shadow-[0_0_15px_rgba(30,71,247,0.15)]' : ''
       }`}
     >
+      {/* Изображение с метриками */}
       <div className="relative h-48">
         <img
-          src={place.imageUrl || DEFAULT_PLACE_IMAGE}
+          src={place.main_photo_url || place.imageUrl || DEFAULT_PLACE_IMAGE}
           alt={place.name}
           className={`w-full h-full object-cover ${
             place.isPremium ? 'brightness-105' : ''

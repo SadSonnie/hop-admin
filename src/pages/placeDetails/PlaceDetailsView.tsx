@@ -60,21 +60,22 @@ const PlaceDetailsView: React.FC = () => {
       try {
         setLoading(true);
         const placeData = await api.getPlace(id);
-        const defaultImage = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=60';
-        const tagIds = placeData.tags_ids || [];
         
         setPlace({
           ...placeData,
-          id: parseInt(placeData.id),
-          mainTag: categories.find(cat => cat.id === parseInt(placeData.category_id))?.name || '',
-          imageUrl: placeData.image || defaultImage,
-          rating: placeData.rating || 0,
-          distance: placeData.distance || '0 км',
-          tagIds: tagIds.map(String),
-          priceLevel: placeData.priceLevel || 1,
-          isPremium: placeData.isPremium || false,
-          reviews: [],
-          images: [placeData.image || defaultImage]
+          imageUrl: placeData.main_photo_url,
+          images: placeData.photos.map(photo => photo.url),
+          mainTag: placeData.Category.name,
+          tags: placeData.PlaceTags.map(tag => ({
+            id: tag.tag_id.toString(),
+            name: tag.placesItems.name
+          })),
+          coordinates: placeData.latitude && placeData.longitude ? {
+            lat: parseFloat(placeData.latitude),
+            lng: parseFloat(placeData.longitude)
+          } : undefined,
+          rating: 0, // TODO: добавить рейтинг в API
+          distance: '0 км', // TODO: добавить расстояние в API
         });
       } catch (error) {
         console.error('Error fetching place:', error);
@@ -84,7 +85,7 @@ const PlaceDetailsView: React.FC = () => {
     };
 
     fetchPlace();
-  }, [id, categories]);
+  }, [id]);
 
   useEffect(() => {
     if (place?.images) {
@@ -212,28 +213,25 @@ const PlaceDetailsView: React.FC = () => {
           <div className="relative h-72 overflow-hidden rounded-xl mx-4 mb-4">
             {/* Теги над слайдером */}
             <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-0.5">
-              {place.tagIds?.map(tagId => {
-                const tag = tags.find(t => String(t.id) === String(tagId));
-                return tag ? (
-                  <div
-                    key={tag.id}
-                    className="h-[28px] backdrop-blur-[10px] px-2 py-1 rounded-[100px] flex items-center gap-0.5 bg-[#FEFEFE33]"
-                    style={{ 
-                      backgroundColor: 'rgba(254, 254, 254, 0.2)',
-                      padding: '4px 8px'
-                    }}
-                  >
-                    <img 
-                      src={tagIcons[tag.id]} 
-                      alt=""
-                      className="w-[18px] h-[18px] brightness-0 invert"
-                    />
-                    <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">
-                      {tag.name}
-                    </span>
-                  </div>
-                ) : null;
-              })}
+              {place.tags?.map(tag => (
+                <div
+                  key={tag.id}
+                  className="h-[28px] backdrop-blur-[10px] px-2 py-1 rounded-[100px] flex items-center gap-0.5 bg-[#FEFEFE33]"
+                  style={{ 
+                    backgroundColor: 'rgba(254, 254, 254, 0.2)',
+                    padding: '4px 8px'
+                  }}
+                >
+                  <img 
+                    src={tagIcons[tag.id]} 
+                    alt=""
+                    className="w-[18px] h-[18px] brightness-0 invert"
+                  />
+                  <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">
+                    {tag.name}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <AnimatePresence initial={false} custom={direction} mode="popLayout">

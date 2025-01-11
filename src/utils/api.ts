@@ -88,6 +88,11 @@ interface CreatePlaceData {
   category_id: number;
   collection_ids?: number[];
   tags_ids?: number[];
+  description?: string;
+  isPremium?: boolean;
+  priceLevel?: number;
+  coordinates?: { lat: number; lng: number };
+  phone?: string;
 }
 
 interface FeedItem {
@@ -180,29 +185,46 @@ export const api = {
   }),
 
   // Места
-  createPlace: (place: Place): Promise<Place> => {
-    const placeData = {
-      name: place.name,
-      description: place.description,
-      address: place.address,
-      mainTag: place.mainTag,
-      rating: place.rating,
-      distance: place.distance,
-      imageUrl: place.imageUrl,
-      isPremium: place.isPremium,
-      tags: place.tags,
-      priceLevel: place.priceLevel,
-      phone: place.phone,
-      images: place.images,
-      reviews: place.reviews
-    };
+  createPlace: (place: CreatePlaceData, photos: File[]): Promise<Place> => {
+    const formData = new FormData();
+
+    // Добавляем обязательные поля
+    formData.append('name', place.name);
+    formData.append('address', place.address);
+    formData.append('category_id', place.category_id.toString());
+
+    // Добавляем опциональные поля
+    if (place.collection_ids?.length) {
+      formData.append('collection_ids', JSON.stringify(place.collection_ids));
+    }
+    if (place.tags_ids?.length) {
+      formData.append('tags_ids', JSON.stringify(place.tags_ids));
+    }
+    if (place.description) {
+      formData.append('description', place.description);
+    }
+    if (place.isPremium !== undefined) {
+      formData.append('isPremium', place.isPremium.toString());
+    }
+    if (place.priceLevel !== undefined) {
+      formData.append('priceLevel', place.priceLevel.toString());
+    }
+    if (place.coordinates) {
+      formData.append('coordinates', JSON.stringify(place.coordinates));
+    }
+    if (place.phone) {
+      formData.append('phone', place.phone);
+    }
+
+    // Добавляем фотографии (максимум 10)
+    photos.slice(0, 10).forEach((photo) => {
+      formData.append('photos', photo);
+    });
 
     return apiRequest('/places', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(placeData)
+      body: formData,
+      // Не указываем Content-Type, браузер сам добавит правильный с boundary
     });
   },
 
@@ -301,44 +323,27 @@ export const api = {
     const transformedItems = items.map(item => {
       if (item.type === 'place') {
         return {
-          id: item.id,
+          id: item.data.id,
           type: item.type,
-          data: {
-            ...item.data,
-            id: item.data.id || item.id,
-            category_id: item.data.category_id
-          }
+          data: item.data
         };
       }
       if (item.type === 'collection') {
         return {
-          id: item.data.id, // Используем id коллекции из data
+          id: item.data.id,
           type: item.type,
-          data: {
-            ...item.data
-          }
+          data: item.data
         };
       }
       return item;
     });
 
     return apiRequest('/feed', {
-      method: 'PATCH',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ items: transformedItems }),
-    }).catch(error => {
-      if (error.message.includes('404')) {
-        return apiRequest('/feed', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ items: transformedItems }),
-        });
-      }
-      throw error;
+      body: JSON.stringify({ items: transformedItems })
     });
   },
 

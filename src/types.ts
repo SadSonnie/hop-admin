@@ -1,3 +1,65 @@
+// Типы для фотографий места
+interface PlacePhoto {
+  id: number;
+  photo_url: string;
+  is_main: boolean;
+}
+
+interface PlacePhotoWithUrl {
+  id: number;
+  url: string;
+  is_main: boolean;
+}
+
+// Тип для категории места
+interface PlaceCategory {
+  id: number;
+  name: string;
+}
+
+// Тип для тега места
+interface PlaceTag {
+  id: number;
+  place_id: string;
+  tag_id: number;
+  createdAt: string;
+  updatedAt: string;
+  placesItems: {
+    id: number;
+    name: string;
+  };
+}
+
+// Тип для связи с коллекцией
+interface CollectionPlace {
+  id: number;
+  collection_id: number;
+  place_id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Place {
+  id: string;
+  name: string;
+  address: string;
+  category_id: number;
+  description?: string;
+  isPremium?: boolean;
+  priceLevel?: number;
+  latitude?: string;
+  longitude?: string;
+  phone?: string;
+  createdAt: string;
+  updatedAt: string;
+  Category: PlaceCategory;
+  PlaceTags: PlaceTag[];
+  CollectionPlaces: CollectionPlace[];
+  PlacePhotos: PlacePhoto[];
+  main_photo_url: string;
+  photos: PlacePhotoWithUrl[];
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -15,26 +77,6 @@ export interface Review {
   rating: number;
   author: string;
   date: string;
-}
-
-export interface Place {
-  id: number;
-  name: string;
-  description?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  instagram?: string;
-  rating?: number;
-  images?: string[];
-  categories?: Category[];
-  tags?: Tag[];
-  reviews?: Review[];
-  // Дополнительные поля из PlaceDetailsView
-  priceLevel?: string;
-  mainTag?: Tag;
-  distance?: string;
-  isPremium?: boolean;
 }
 
 export interface Collection {
