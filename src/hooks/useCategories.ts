@@ -4,6 +4,9 @@ import { api } from '../utils/api';
 export interface Category {
   id: number;
   name: string;
+  description: string;
+  icon: string;
+  isActive: boolean;
 }
 
 export function useCategories() {
@@ -15,7 +18,6 @@ export function useCategories() {
     const fetchCategories = async () => {
       try {
         const response = await api.getCategories();
-        console.log('Categories raw response:', response);
         
         // Обработка различных форматов ответа
         let categoriesData: Category[] = [];
@@ -29,11 +31,10 @@ export function useCategories() {
           }
         }
         
-        console.log('Processed categories data:', categoriesData);
         setCategories(categoriesData);
-      } catch (err) {
-        console.error('Failed to fetch categories:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch categories'));
+        setLoading(false);
+      } catch (error) {
+        setError(error instanceof Error ? error : new Error('Failed to fetch categories'));
       } finally {
         setLoading(false);
       }

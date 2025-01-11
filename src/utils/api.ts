@@ -183,18 +183,20 @@ export const api = {
   createPlace: (place: Place): Promise<Place> => {
     const placeData = {
       name: place.name,
+      description: place.description,
       address: place.address,
-      category_id: parseInt(place.category_id?.toString() || '0'),
-      tags_ids: place.tags_ids || [],
-      description: place.description || '',
-      isPremium: place.isPremium || false,
-      priceLevel: place.priceLevel || 1,
-      coordinates: place.coordinates || { lat: 0, lng: 0 },
-      phone: place.phone || ''
+      mainTag: place.mainTag,
+      rating: place.rating,
+      distance: place.distance,
+      imageUrl: place.imageUrl,
+      isPremium: place.isPremium,
+      tags: place.tags,
+      priceLevel: place.priceLevel,
+      phone: place.phone,
+      images: place.images,
+      reviews: place.reviews
     };
 
-    console.log('Creating place with data:', JSON.stringify(placeData, null, 2));
-    
     return apiRequest('/places', {
       method: 'POST',
       headers: {
@@ -305,6 +307,15 @@ export const api = {
             ...item.data,
             id: item.data.id || item.id,
             category_id: item.data.category_id
+          }
+        };
+      }
+      if (item.type === 'collection') {
+        return {
+          id: item.data.id, // Используем id коллекции из data
+          type: item.type,
+          data: {
+            ...item.data
           }
         };
       }

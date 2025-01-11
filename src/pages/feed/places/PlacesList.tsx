@@ -49,14 +49,16 @@ const PlacesList: React.FC = () => {
   }
 
   return (
-    <div className="pb-16">
-      <div className="bg-[#fafafa] pb-7">
-        {feedItems.map((item) => (
-          <div key={item.id}>
-            
+    <div className="flex flex-col min-h-screen pb-32">
+      <div className="flex-grow bg-[#fafafa]">
+        {feedItems.map((item, index) => (
+          <div key={item.id} className={index === feedItems.length - 1 ? 'mb-20' : ''}>
+            {/* содержимое карточки */}
           </div>
         ))}
       </div>
+      {/* Этот div будет всегда оставаться внизу и не даст меню перекрыть контент */}
+      <div className="h-24 shrink-0"></div>
     </div>
   );
 };

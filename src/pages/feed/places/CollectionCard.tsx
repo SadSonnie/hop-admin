@@ -1,13 +1,24 @@
 import React from 'react';
 import { Star, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Place } from '../../types';
+import { DEFAULT_PLACE_IMAGE } from './constants';
+import { useCategories } from '../../../hooks/useCategories';
 
 interface CollectionCardProps {
   place: Place;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
+  const navigate = useNavigate();
+  const { getCategoryName } = useCategories();
+
+  const handleClick = () => {
+    navigate(`/places/${place.id}`);
+    onClick?.();
+  };
+
   const renderPriceLevel = () => {
     return Array(3).fill(0).map((_, index) => {
       if (place.isPremium) {
@@ -48,18 +59,22 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
 
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       className={`flex-shrink-0 w-64 mx-2 cursor-pointer rounded-2xl overflow-hidden ${
         place.isPremium ? 'shadow-[0_0_15px_rgba(30,71,247,0.15)]' : ''
       }`}
     >
       <div className="relative h-48">
         <img
-          src={place.imageUrl}
+          src={place.imageUrl || DEFAULT_PLACE_IMAGE}
           alt={place.name}
           className={`w-full h-full object-cover ${
             place.isPremium ? 'brightness-105' : ''
           }`}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = DEFAULT_PLACE_IMAGE;
+          }}
         />
         {/* Премиальный градиент */}
         {place.isPremium && (
@@ -104,7 +119,9 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
 
         {/* Текст поверх градиента */}
         <div className="absolute bottom-3 left-3 right-3">
-          <h3 className="font-bold text-lg text-white mb-1">{place.name}</h3>
+          <h3 className="font-bold text-lg text-white mb-1">
+            {place.category_id && `${getCategoryName(place.category_id)} `}{place.name}
+          </h3>
           <p className="text-sm text-gray-200">{place.description}</p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCategories } from '../../../hooks/useCategories';
+import { DEFAULT_PLACE_IMAGE } from './constants';
 
 interface PlaceCardProps {
   id: number;
@@ -61,9 +62,13 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
       {/* Изображение с метриками */}
       <div className="relative h-[140px] rounded-xl overflow-hidden mx-4 mt-4">
         <img
-          src={imageUrl || ''}
+          src={imageUrl || DEFAULT_PLACE_IMAGE}
           alt={name}
           className="w-full h-full object-cover rounded-xl"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = DEFAULT_PLACE_IMAGE;
+          }}
         />
         {/* Метрики поверх изображения */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2">

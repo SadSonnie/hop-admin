@@ -1,75 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Share2, ArrowLeft, MapPin, Star, Phone, Mail, Instagram, Users, Coffee, Wine } from 'lucide-react';
+import { Share2, ArrowLeft, MapPin, Star, Phone, Mail, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Place } from '../../types';
-import { fetchPlaceById } from '../../services/feedService';
+import api from '../../utils/api';
 import ReviewCard from './ReviewCard';
 import { RatingStars } from './RatingStars';
+import { mockTags as tags } from '../../data/mockTags';
+
+// Импортируем все иконки
+const tagIcons: { [key: string]: string } = {
+  "1": "/icons/tag_friends.svg",
+  "2": "/icons/tag_pets.svg",
+  "3": "/icons/tag_partner.svg",
+  "4": "/icons/tag_family.svg",
+  "5": "/icons/tag_self_development.svg",
+  "6": "/icons/tag_alone.svg",
+  "7": "/icons/tag_shopping.svg",
+  "8": "/icons/tag_kids.svg",
+  "9": "/icons/tag_spa.svg",
+  "10": "/icons/tag_food.svg",
+  "11": "/icons/tag_entertainment.svg",
+  "12": "/icons/tag_culture.svg",
+  "13": "/icons/tag_active_leisure.svg",
+};
 
 const PlaceDetailsView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [place, setPlace] = useState<Place | null>(null);
   const [loading, setLoading] = useState(true);
-  const [[page, direction], setPage] = useState<[number, number]>([0, 0]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [[page, direction], setPage] = useState([0, 0]);
   const [wasHere, setWasHere] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
-    const loadPlace = async () => {
-      if (!id) {
-        navigate('/');
-        return;
-      }
-      
-      setLoading(true);
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Загружаем категории
+  useEffect(() => {
+    const loadCategories = async () => {
       try {
-        const placeData = await fetchPlaceById(parseInt(id, 10));
-        if (!placeData) {
-          throw new Error('Place not found');
-        }
-        setPlace(placeData);
+        const data = await api.getCategories();
+        setCategories(data.items);
       } catch (error) {
-        console.error('Failed to load place:', error);
-        navigate('/');
+        console.error('Failed to load categories:', error);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    const fetchPlace = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const placeData = await api.getPlace(id);
+        const defaultImage = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=60';
+        const tagIds = placeData.tags_ids || [];
+        
+        setPlace({
+          ...placeData,
+          id: parseInt(placeData.id),
+          mainTag: categories.find(cat => cat.id === parseInt(placeData.category_id))?.name || '',
+          imageUrl: placeData.image || defaultImage,
+          rating: placeData.rating || 0,
+          distance: placeData.distance || '0 км',
+          tagIds: tagIds.map(String),
+          priceLevel: placeData.priceLevel || 1,
+          isPremium: placeData.isPremium || false,
+          reviews: [],
+          images: [placeData.image || defaultImage]
+        });
+      } catch (error) {
+        console.error('Error fetching place:', error);
       } finally {
         setLoading(false);
       }
     };
-    
-    loadPlace();
-  }, [id, navigate]);
 
-  if (loading) {
+    fetchPlace();
+  }, [id, categories]);
+
+  useEffect(() => {
+    if (place?.images) {
+      // Предварительная загрузка всех изображений
+      place.images.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+      });
+    }
+  }, [place?.images]);
+
+  useEffect(() => {
+    setLoading(false);
+  }, [place]);
+
+  if (loading || !place) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-gray-600">Загрузка...</div>
       </div>
     );
   }
-
-  if (!place) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-600">Place not found</div>
-      </div>
-    );
-  }
-
-  // Расчет средней оценки
-  const averageRating = place.reviews?.length 
-    ? Number((place.reviews.reduce((sum, review) => sum + review.rating, 0) / place.reviews.length).toFixed(1))
-    : 0;
 
   const handleBack = () => {
     navigate('/');
   };
 
-  const imagesLength = place.images?.length || 1;
-  const imageIndex = ((page % imagesLength) + imagesLength) % imagesLength;
-  const nextImageIndex = ((imageIndex + 1) % imagesLength);
-  const prevImageIndex = ((imageIndex - 1 + imagesLength) % imagesLength);
+  const images = place.images || [place.imageUrl];
+  const imageIndex = Math.abs(page % images.length);
+  const nextImageIndex = Math.abs((page + 1) % images.length);
+  const prevImageIndex = Math.abs((page - 1) % images.length);
+
+  // Расчет средней оценки и количества отзывов
+  const reviews = place.reviews || [];
+  const averageRating = reviews.length > 0
+    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+    : '0.0';
 
   const swipeConfidenceThreshold = 10000;
   const swipePower = (offset: number, velocity: number) => {
@@ -86,20 +138,25 @@ const PlaceDetailsView: React.FC = () => {
   };
 
   const renderPriceLevel = () => {
-    const level = typeof place.priceLevel === 'string' ? parseInt(place.priceLevel, 10) : 0;
     return Array(3).fill(0).map((_, index) => (
       <span 
         key={index} 
-        className="text-sm font-medium leading-none" 
-        style={{ color: index < level ? '#1e47f7' : '#9aacfb' }}
+        className={`text-sm font-medium leading-none ${place.isPremium ? 'text-white' : ''}`}
+        style={{ 
+          color: place.isPremium 
+            ? 'white' 
+            : index < (place.priceLevel ?? 0) 
+              ? '#1e47f7' 
+              : '#9aacfb' 
+        }}
       >
         ₽
       </span>
     ));
   };
 
-  const getTagIcon = (tagName: string) => {
-    switch (tagName.toLowerCase()) {
+  const getTagIcon = (tag: string) => {
+    switch (tag) {
       case 'cafe':
         return <Coffee className="w-4 h-4 text-white" />;
       case 'bar':
@@ -129,139 +186,145 @@ const PlaceDetailsView: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       {/* Хедер */}
-      <header className="sticky top-0 z-50 bg-white">
+      <header className={`sticky top-0 z-50 ${place.isPremium ? 'bg-[#2846ED]' : 'bg-white'}`}>
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={handleBack} className="p-2 -ml-2">
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className={`w-6 h-6 ${place.isPremium ? 'text-white' : 'text-black'}`} />
           </button>
           <button>
-            <Share2 className="w-6 h-6" />
+            <Share2 className={`w-6 h-6 ${place.isPremium ? 'text-white' : 'text-black'}`} />
           </button>
         </div>
       </header>
 
       <div className="pb-20">
         {/* Основной блок */}
-        <div className="bg-white rounded-2xl mb-2">
+        <div className={`${place.isPremium ? 'bg-[#2846ED]' : 'bg-white'} rounded-b-2xl mb-1`}>
           <div className="h-[46px] flex flex-col justify-between px-4">
-            <p className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-[#020203]">{place.mainTag?.name}</p>
-            <h1 className="text-[24px] font-[500] leading-[28.75px] tracking-[-0.02em] text-[#020203]">{place.name}</h1>
+            <p className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] ${place.isPremium ? 'text-white/80' : 'text-[#020203]'}`}>
+              {place.mainTag}
+            </p>
+            <h1 className={`text-[24px] font-[500] leading-[28.75px] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>
+              {place.name}
+            </h1>
           </div>
           {/* Слайдер изображений */}
           <div className="relative h-72 overflow-hidden rounded-xl mx-4 mb-4">
-            <AnimatePresence initial={false} custom={direction} mode="popLayout">
-              {place.images?.[imageIndex] && (
-                <motion.div
-                  key={page}
-                  className="absolute inset-0"
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: "spring", stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.2 }
-                  }}
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={1}
-                  onDragStart={() => setIsDragging(true)}
-                  onDragEnd={(_, { offset, velocity }) => {
-                    setIsDragging(false);
-                    const swipe = swipePower(offset.x, velocity.x);
+            {/* Теги над слайдером */}
+            <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-0.5">
+              {place.tagIds?.map(tagId => {
+                const tag = tags.find(t => String(t.id) === String(tagId));
+                return tag ? (
+                  <div
+                    key={tag.id}
+                    className="h-[28px] backdrop-blur-[10px] px-2 py-1 rounded-[100px] flex items-center gap-0.5 bg-[#FEFEFE33]"
+                    style={{ 
+                      backgroundColor: 'rgba(254, 254, 254, 0.2)',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    <img 
+                      src={tagIcons[tag.id]} 
+                      alt=""
+                      className="w-[18px] h-[18px] brightness-0 invert"
+                    />
+                    <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">
+                      {tag.name}
+                    </span>
+                  </div>
+                ) : null;
+              })}
+            </div>
 
-                    if (swipe < -swipeConfidenceThreshold) {
-                      paginate(1);
-                    } else if (swipe > swipeConfidenceThreshold) {
-                      paginate(-1);
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '12px'
-                  }}
-                  aria-label={`Image ${imageIndex + 1} of ${place.images?.length}`}
-                  role="img"
-                >
-                  <img
-                    src={place.images[imageIndex]}
-                    alt={`${place.name} - фото ${imageIndex + 1}`}
-                    className="w-full h-full object-cover rounded-xl"
-                  />
-                </motion.div>
-              )}
-              {isDragging && place.images && (
+            <AnimatePresence initial={false} custom={direction} mode="popLayout">
+              <motion.div
+                key={page}
+                className="absolute inset-0"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 }
+                }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={1}
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={(_, { offset, velocity }) => {
+                  setIsDragging(false);
+                  const swipe = swipePower(offset.x, velocity.x);
+
+                  if (swipe < -swipeConfidenceThreshold) {
+                    paginate(1);
+                  } else if (swipe > swipeConfidenceThreshold) {
+                    paginate(-1);
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '12px'
+                }}
+              >
+                <img
+                  src={images[imageIndex]}
+                  alt={place.name}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              </motion.div>
+              {isDragging && (
                 <>
-                  {place.images[prevImageIndex] && (
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ 
-                        x: '-100%',
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <img
-                        src={place.images[prevImageIndex]}
-                        alt={`${place.name} - предыдущее фото`}
-                        className="w-full h-full object-cover rounded-xl"
-                      />
-                    </motion.div>
-                  )}
-                  {place.images[nextImageIndex] && (
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ 
-                        x: '100%',
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '12px'
-                      }}
-                    >
-                      <img
-                        src={place.images[nextImageIndex]}
-                        alt={`${place.name} - следующее фото`}
-                        className="w-full h-full object-cover rounded-xl"
-                      />
-                    </motion.div>
-                  )}
+                  <motion.div
+                    className="absolute inset-0"
+                    style={{ 
+                      x: '-100%',
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <img
+                      src={images[prevImageIndex]}
+                      alt={place.name}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  </motion.div>
+                  <motion.div
+                    className="absolute inset-0"
+                    style={{ 
+                      x: '100%',
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <img
+                      src={images[nextImageIndex]}
+                      alt={place.name}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  </motion.div>
                 </>
               )}
             </AnimatePresence>
-            {/* Теги заведения */}
-            <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-10">
-              {place.tags?.map((tag, index) => (
-                <div
+
+            {/* Индикаторы слайдера */}
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+              {images.map((_, index) => (
+                <button
                   key={index}
-                  className="backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-2"
-                  style={{ background: 'rgba(0, 0, 0, 0.1)' }}
-                >
-                  {getTagIcon(tag.name)}
-                  <span className="text-sm font-medium text-white">{tag.name}</span>
-                </div>
+                  onClick={() => !isDragging && handleDotClick(index)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${
+                    index === imageIndex ? 'bg-white w-3' : 'bg-white/50'
+                  }`}
+                />
               ))}
             </div>
-            {/* Индикаторы слайдера */}
-            {place.images && place.images.length > 1 && (
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                {place.images.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`w-2 h-2 rounded-full ${
-                      index === imageIndex ? 'bg-white' : 'bg-white/50'
-                    }`}
-                    onClick={() => handleDotClick(index)}
-                    aria-label={`Перейти к фото ${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Информация о заведении */}
@@ -270,10 +333,11 @@ const PlaceDetailsView: React.FC = () => {
               onClick={() => setWasHere(!wasHere)}
               className={`w-[32vw] min-w-[125px] h-[7.1vw] min-h-[30px] rounded-full text-[2.8vw] min-text-[12px] font-medium leading-[1.2] tracking-[-0.02em] transition-colors whitespace-nowrap
                 ${wasHere 
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                  : 'bg-white text-[#020203] border border-[#969699] hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white' 
+                  : place.isPremium
+                    ? 'bg-[#2846ED] text-white border border-white'
+                    : 'bg-white text-[#020203] border border-[#969699]'
                 }`}
-              aria-pressed={wasHere}
             >
               {wasHere ? 'Я здесь был(а)' : 'Я здесь не был(а)'}
             </button>
@@ -283,41 +347,40 @@ const PlaceDetailsView: React.FC = () => {
                 className="h-[5.2vw] min-h-[22px] backdrop-blur-md px-[0.5rem] rounded-[100px] flex items-center gap-1"
                 style={{ background: 'rgba(30, 71, 247, 0.08)' }}
               >
-                <span className="text-[2.8vw] min-text-[12px] font-[500] leading-[120%] tracking-[-0.02em] text-blue-600">{place.rating}</span>
-                <Star className="w-4 h-4 text-blue-600 fill-blue-600" />
+                <span className={`text-[2.8vw] min-text-[12px] font-[500] leading-[120%] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-blue-600'}`}>{place.rating}</span>
+                <Star className={`w-4 h-4 ${place.isPremium ? 'text-white' : 'text-blue-600'} fill-${place.isPremium ? 'white' : 'blue-600'}`} />
               </div>
               <div 
                 className="h-[5.2vw] min-h-[22px] backdrop-blur-md px-[0.5rem] rounded-[100px] flex items-center gap-0.5"
                 style={{ background: 'rgba(30, 71, 247, 0.08)' }}
               >
-                <span className="font-medium">{renderPriceLevel()}</span>
+                <span className={`font-medium ${place.isPremium ? 'text-white' : ''}`}>{renderPriceLevel()}</span>
               </div>
               <div 
                 className="h-[5.2vw] min-h-[22px] backdrop-blur-md px-[0.5rem] rounded-[100px] flex items-center"
                 style={{ background: 'rgba(30, 71, 247, 0.08)' }}
               >
-                <span className="text-[2.8vw] min-text-[12px] font-[500] leading-[120%] tracking-[-0.02em] text-blue-600">{place.distance}</span>
+                <span className={`text-[2.8vw] min-text-[12px] font-[500] leading-[120%] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-blue-600'}`}>{place.distance}</span>
               </div>
             </div>
           </div>
 
           {/* Описание */}
-          <p className="text-[#020203] text-[14px] leading-[15.4px] tracking-[-0.02em] font-normal px-4 py-3">{place.description}</p>
+          <p className={`text-[#020203] text-[14px] leading-[15.4px] tracking-[-0.02em] font-normal px-4 py-3 ${place.isPremium ? 'text-white/80' : ''}`}>{place.description}</p>
         </div>
 
         {/* Дополнительно */}
-        <div className="bg-white rounded-2xl px-4 py-3">
-          <h2 className="text-[16px] font-[500] leading-[19.17px] tracking-[-0.02em] text-[#020203] mb-4">Дополнительно</h2>
+        <div className={`${place.isPremium ? 'bg-[#2846ED]' : 'bg-white'} rounded-2xl px-4 py-3 mb-1`}>
+          <h2 className={`text-[16px] font-[500] leading-[19.17px] tracking-[-0.02em] text-[#020203] mb-4 ${place.isPremium ? 'text-white' : ''}`}>Дополнительно</h2>
           
           {/* Построить маршрут */}
           <button 
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl mb-4 transition-colors"
-            onClick={() => {
-              // Handle route building logic here
-              console.log('Building route to:', place.address);
-            }}
+            className={`w-full flex items-center justify-center py-3 px-4 rounded-[100px] mb-4 ${
+              place.isPremium 
+                ? 'bg-[#2846ED] text-white border border-white' 
+                : 'bg-[#F9F9FE] text-[#1E47F7] border border-[#1E47F7]'
+            }`}
           >
-            <MapPin className="w-5 h-5" />
             <span>Построить маршрут</span>
           </button>
 
@@ -325,48 +388,48 @@ const PlaceDetailsView: React.FC = () => {
           <div className="flex flex-col gap-4">
             {/* Адрес */}
             <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-[40px] h-[40px] bg-[#FAFAFA] rounded-[100px]">
-                <MapPin className="w-6 h-6 text-[#020203]" />
+              <div className={`flex items-center justify-center w-[40px] h-[40px] rounded-[100px] ${place.isPremium ? 'bg-white' : 'bg-[#FAFAFA]'}`}>
+                <MapPin className={`w-6 h-6 ${place.isPremium ? 'text-[#2846ED]' : 'text-[#020203]'}`} />
               </div>
-              <span className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-[#020203] pt-2.5">{place.address}</span>
+              <span className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] pt-2.5 ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>{place.address}</span>
             </div>
 
             {/* Телефон (только для премиум) */}
-            {place.isPremium && place.phone && (
+            {place.phone && (
               <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center w-[40px] h-[40px] bg-[#FAFAFA] rounded-[100px]">
-                  <Phone className="w-6 h-6 text-[#020203]" />
+                <div className={`flex items-center justify-center w-[40px] h-[40px] rounded-[100px] ${place.isPremium ? 'bg-white' : 'bg-[#FAFAFA]'}`}>
+                  <Phone className={`w-6 h-6 ${place.isPremium ? 'text-[#2846ED]' : 'text-[#020203]'}`} />
                 </div>
-                <span className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-[#020203] pt-2.5">{place.phone}</span>
+                <span className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] pt-2.5 ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>{place.phone}</span>
               </div>
             )}
           </div>
 
-          {/* Контакты (только для премиум) */}
-          {place.isPremium && (
-            <div>
-              {place.email && (
-                <div className="flex items-center gap-3 py-3">
-                  <Mail className="w-5 h-5 text-gray-400" />
-                  <a href={`mailto:${place.email}`} className="text-gray-700 font-medium">{place.email}</a>
+          {/* Социальные сети */}
+          <div>
+            {place.email && (
+              <div className="flex items-center gap-3 py-3">
+                <div className={`flex items-center justify-center w-[40px] h-[40px] rounded-[100px] ${place.isPremium ? 'bg-white' : 'bg-[#FAFAFA]'}`}>
+                  <Mail className={`w-6 h-6 ${place.isPremium ? 'text-[#2846ED]' : 'text-[#020203]'}`} />
                 </div>
-              )}
-              {place.instagram && (
-                <div className="flex items-center gap-3 py-3">
-                  <Instagram className="w-5 h-5 text-gray-400" />
-                  <a href={`https://instagram.com/${place.instagram}`} className="text-gray-700 font-medium">@{place.instagram}</a>
+                <a href={`mailto:${place.email}`} className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>{place.email}</a>
+              </div>
+            )}
+            {place.instagram && (
+              <div className="flex items-center gap-3 py-3">
+                <div className={`flex items-center justify-center w-[40px] h-[40px] rounded-[100px] ${place.isPremium ? 'bg-white' : 'bg-[#FAFAFA]'}`}>
+                  <Instagram className={`w-6 h-6 ${place.isPremium ? 'text-[#2846ED]' : 'text-[#020203]'}`} />
                 </div>
-              )}
-            </div>
-          )}
+                <a href={`https://instagram.com/${place.instagram}`} className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>@{place.instagram}</a>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Отзывы */}
-        <div className="bg-white rounded-2xl p-4">
-          <div className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-[#020203] mb-4">
-            {place.reviews?.length 
-              ? `${place.reviews.length} ${place.reviews.length === 1 ? 'отзыв' : 'отзыва'}`
-              : 'Нет отзывов'}
+        <div className={`${place.isPremium ? 'bg-[#2846ED]' : 'bg-white'} rounded-2xl p-4`}>
+          <div className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] mb-4 ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>
+            {reviews.length} отзыва
           </div>
             
           {/* Блок рейтинга */}
@@ -380,13 +443,17 @@ const PlaceDetailsView: React.FC = () => {
               </div>
               <div className="flex flex-col">
                 <span className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-[#020203]">
-                  {place.reviews?.length} отзывов
+                  {reviews.length} отзывов
                 </span>
                 <div className="w-[80px] h-[16px] flex gap-[2px]">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star 
-                      key={star} 
-                      className="w-3 h-3 text-[#2846ED] fill-[#2846ED]"
+                  {[...Array(5)].map((_, index) => (
+                    <Star
+                      key={index}
+                      size={16}
+                      className={index < Math.round(parseFloat(averageRating))
+                        ? 'text-[#1E47F7] fill-[#1E47F7]'
+                        : 'text-[#969699]'
+                      }
                     />
                   ))}
                 </div>
@@ -397,7 +464,7 @@ const PlaceDetailsView: React.FC = () => {
             {/* Форма отзыва */}
             <div className="mt-4 flex flex-col items-center">
               <img 
-                src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=800&auto=format&fit=crop&q=60" 
+                src="/path/to/avatar.jpg" 
                 alt="User avatar" 
                 className="w-[32px] h-[32px] rounded-[100px] mb-2 object-cover object-center"
               />
@@ -410,9 +477,49 @@ const PlaceDetailsView: React.FC = () => {
 
           {/* Список отзывов */}
           <div className="mt-4">
-            {place.reviews?.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
+            {place.isPremium ? (
+              reviews.map((review, index) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img 
+                      src={review.authorAvatar} 
+                      alt={review.authorName} 
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] text-white">
+                        {review.authorName}
+                      </p>
+                      <p className="text-[12px] font-[400] leading-[14.38px] tracking-[-0.02em] text-white/60">
+                        {review.date}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <div className="flex gap-[2px] mb-1">
+                      {[...Array(5)].map((_, star) => (
+                        <Star 
+                          key={star}
+                          className={`w-3 h-3 text-white fill-white ${
+                            star < review.rating ? '' : 'opacity-30'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <h3 className="text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] mb-1 text-white">
+                      {review.title}
+                    </h3>
+                    <p className="text-[14px] font-[400] leading-[16.77px] tracking-[-0.02em] text-white">
+                      {review.text}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))
+            )}
           </div>
         </div>
       </div>

@@ -47,8 +47,6 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
     }
   };
 
-  console.log('Modal availablePlaces:', availablePlaces);
-
   if (!isOpen) return null;
 
   return (
