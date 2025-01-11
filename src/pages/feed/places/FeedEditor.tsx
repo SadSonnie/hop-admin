@@ -72,16 +72,18 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
           <FeaturedCollection collection={item.data} />
         ) : (
           <PlaceCard 
-            id={parseInt(item.id)}
+            id={parseInt(item.data.id)}
             name={item.data.name}
             address={item.data.address}
             category_id={item.data.category_id}
-            imageUrl={item.data.imageUrl} 
+            main_photo_url={item.data.main_photo_url}
+            imageUrl={item.data.imageUrl || ''}
             description={item.data.description}
             rating={item.data.rating}
             distance={item.data.distance}
             isPremium={item.data.isPremium}
             priceLevel={item.data.priceLevel}
+            tagIds={item.data.PlaceTags?.map(tag => tag.tag_id.toString()) || []}
           />
         )}
       </div>
@@ -190,7 +192,7 @@ const FeedEditor: React.FC = () => {
         (collection.places_ids || []).map(id => api.getPlace(id))
       );
       const newItem: FeedItem = {
-        id: `${Date.now()}`,
+        id: collection.id.toString(), // Используем ID существующей коллекции
         type: 'collection',
         order: feedItems.length + 1,
         data: {
@@ -238,10 +240,11 @@ const FeedEditor: React.FC = () => {
             if (isEditing) {
               try {
                 const items = feedItems.map(item => ({
-                  id: item.id,
+                  id: item.data.id, // Используем ID из data
                   type: item.type,
                   data: item.data
                 }));
+                console.log('Saving feed items:', items); // Добавляем логирование
                 await api.saveFeed(items);
               } catch (error) {
                 console.error('Failed to save feed:', error);

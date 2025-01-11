@@ -1,36 +1,60 @@
-import React from 'react';
 import { Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import type { Place } from '../../../types';
+import { mockTags as tags} from '../../../data/mockTags';
 import { useCategories } from '../../../hooks/useCategories';
-import { DEFAULT_PLACE_IMAGE } from './constants';
 
-interface PlaceCardProps {
-  id: number;
-  name: string;
-  address: string;
-  category_id?: number;
-  description?: string;
-  rating?: number;
-  distance?: string;
-  imageUrl: string;
-  isPremium?: boolean;
-  priceLevel?: number;
+// Импортируем все иконки
+import tagFriends from '/icons/tag_friends.svg';
+import tagPets from '/icons/tag_pets.svg';
+import tagPartner from '/icons/tag_partner.svg';
+import tagFamily from '/icons/tag_family.svg';
+import tagSelfDevelopment from '/icons/tag_self_development.svg';
+import tagAlone from '/icons/tag_alone.svg';
+import tagShopping from '/icons/tag_shopping.svg';
+import tagKids from '/icons/tag_kids.svg';
+import tagSpa from '/icons/tag_spa.svg';
+import tagFood from '/icons/tag_food.svg';
+import tagEntertainment from '/icons/tag_entertainment.svg';
+import tagCulture from '/icons/tag_culture.svg';
+import tagActiveLeisure from '/icons/tag_active_leisure.svg';
+
+// Создаем маппинг иконок
+const tagIcons: { [key: string]: string } = {
+  "1": tagFriends,
+  "2": tagPets,
+  "3": tagPartner,
+  "4": tagFamily,
+  "5": tagSelfDevelopment,
+  "6": tagAlone,
+  "7": tagShopping,
+  "8": tagKids,
+  "9": tagSpa,
+  "10": tagFood,
+  "11": tagEntertainment,
+  "12": tagCulture,
+  "13": tagActiveLeisure,
+};
+
+interface PlaceCardProps extends Place {
   onClick?: () => void;
 }
 
-const PlaceCard: React.FC<PlaceCardProps> = ({
+const PlaceCard = ({ 
   id,
-  name,
-  address,
-  category_id,
-  description,
-  rating,
-  distance,
+  name, 
+  mainTag,
+  description, 
+  rating, 
+  distance, 
   imageUrl,
-  isPremium = false,
+  main_photo_url,
+  isPremium, 
   priceLevel = 1,
-  onClick
-}) => {
+  tagIds = [],
+  category_id,
+  onClick 
+}: PlaceCardProps) => {
   const navigate = useNavigate();
   const { getCategoryName } = useCategories();
   const categoryName = getCategoryName(category_id);
@@ -44,14 +68,22 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
   const renderPriceLevel = () => {
     return Array(3).fill(0).map((_, index) => (
       <span 
-        key={index} 
+        key={`price-${id}-${index}`} 
         className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.04em] text-white" 
-        style={{ opacity: index < (priceLevel ?? 0) ? 1 : 0.5 }}
+        style={{ opacity: index < priceLevel ? 1 : 0.5 }}
       >
         ₽
       </span>
     ));
   };
+
+  const displayTags = (tagIds || [])
+    .slice(0, 4)
+    .map(id => ({
+      ...tags.find(tag => tag.id === id),
+      iconSrc: tagIcons[id]
+    }))
+    .filter(tag => tag !== undefined);
 
   return (
     <div 
@@ -62,44 +94,57 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
       {/* Изображение с метриками */}
       <div className="relative h-[140px] rounded-xl overflow-hidden mx-4 mt-4">
         <img
-          src={imageUrl || DEFAULT_PLACE_IMAGE}
+          key={`place-image-${id}`}
+          src={main_photo_url || imageUrl}
           alt={name}
           className="w-full h-full object-cover rounded-xl"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = DEFAULT_PLACE_IMAGE;
-          }}
         />
         {/* Метрики поверх изображения */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2">
-          {rating && (
-            <div 
-              className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center gap-1"
-              style={{ background: 'rgba(30, 71, 247, 0.2)' }}
-            >
-              <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{rating}</span>
-              <Star className="w-4 h-4 text-white fill-white" />
+          {/* Тег оценки */}
+          <div 
+            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center gap-1"
+            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
+          >
+            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{rating}</span>
+            <Star className="w-4 h-4 text-white fill-white" />
+          </div>
+          {/* Тег цены */}
+          <div 
+            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
+            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
+          >
+            <div className="flex items-center">
+              {renderPriceLevel()}
             </div>
-          )}
-          {priceLevel && (
-            <div 
-              className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
-              style={{ background: 'rgba(30, 71, 247, 0.2)' }}
-            >
-              <div className="flex items-center">
-                {renderPriceLevel()}
-              </div>
-            </div>
-          )}
+          </div>
+          {/* Тег расстояния */}
+          <div 
+            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
+            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
+          >
+            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{distance}</span>
+          </div>
         </div>
       </div>
 
       {/* Информация */}
       <div className="p-4">
-        <h3 className="text-lg font-medium mb-1">
-          {categoryName ? `${categoryName} ${name}` : name}
-        </h3>
-        {description && <p className="text-sm opacity-80">{description}</p>}
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-medium">{categoryName ? `${categoryName} ${name}` : name}</h3>
+          <div className="flex items-center gap-2">
+            {displayTags.map((tag, index) => (
+              <img 
+                key={`tag-${id}-${tag?.id || index}`} 
+                src={tag?.iconSrc} 
+                alt={tag?.name}
+                title={tag?.name}
+                className={`w-6 h-6 ${isPremium ? 'brightness-0 invert' : ''}`}
+              />
+            ))}
+          </div>
+        </div>
+        <p className="text-sm opacity-80">{description}</p>
       </div>
     </div>
   );
