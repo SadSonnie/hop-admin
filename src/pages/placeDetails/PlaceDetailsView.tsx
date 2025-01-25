@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, ArrowLeft, MapPin, Star, Phone, Mail, Instagram } from 'lucide-react';
+import { Coffee, Wine, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Place } from '../../types';
+import type { Place, Review } from '../../types';
 import api from '../../utils/api';
 import ReviewCard from './ReviewCard';
 import { RatingStars } from './RatingStars';
-import { mockTags as tags } from '../../data/mockTags';
 
 // Импортируем все иконки
 const tagIcons: { [key: string]: string } = {
@@ -25,13 +25,31 @@ const tagIcons: { [key: string]: string } = {
   "13": "/icons/tag_active_leisure.svg",
 };
 
+interface ExtendedReview extends Review {
+  authorName: string;
+  authorAvatar: string;
+  title?: string;
+}
+
+interface PlaceWithExtendedProps extends Place {
+  reviews?: ExtendedReview[];
+  instagram?: string;
+  email?: string;
+  images?: string[];
+  imageUrl?: string;
+  mainTag?: string;
+  tags?: Array<{ id: string; name: string }>;
+  rating?: number;
+  distance?: string;
+}
+
 const PlaceDetailsView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [place, setPlace] = useState<Place | null>(null);
+  const [place, setPlace] = useState<PlaceWithExtendedProps | null>(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
-  const [[page, direction], setPage] = useState([0, 0]);
+  const [[page, direction], setPage] = useState<[number, number]>([0, 0]);
   const [wasHere, setWasHere] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -64,9 +82,9 @@ const PlaceDetailsView: React.FC = () => {
         setPlace({
           ...placeData,
           imageUrl: placeData.main_photo_url,
-          images: placeData.photos.map(photo => photo.url),
+          images: placeData.photos.map((photo: { url: string }) => photo.url),
           mainTag: placeData.Category.name,
-          tags: placeData.PlaceTags.map(tag => ({
+          tags: placeData.PlaceTags.map((tag: { tag_id: number; placesItems: { name: string } }) => ({
             id: tag.tag_id.toString(),
             name: tag.placesItems.name
           })),
@@ -74,8 +92,8 @@ const PlaceDetailsView: React.FC = () => {
             lat: parseFloat(placeData.latitude),
             lng: parseFloat(placeData.longitude)
           } : undefined,
-          rating: 0, // TODO: добавить рейтинг в API
-          distance: '0 км', // TODO: добавить расстояние в API
+          rating: 0,
+          distance: '0 км',
         });
       } catch (error) {
         console.error('Error fetching place:', error);
@@ -90,7 +108,7 @@ const PlaceDetailsView: React.FC = () => {
   useEffect(() => {
     if (place?.images) {
       // Предварительная загрузка всех изображений
-      place.images.forEach((src) => {
+      place.images.forEach((src: string) => {
         const img = new Image();
         img.src = src;
       });
@@ -121,7 +139,7 @@ const PlaceDetailsView: React.FC = () => {
   // Расчет средней оценки и количества отзывов
   const reviews = place.reviews || [];
   const averageRating = reviews.length > 0
-    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+    ? (reviews.reduce((sum: number, review: ExtendedReview) => sum + review.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
 
   const swipeConfidenceThreshold = 10000;
@@ -139,7 +157,7 @@ const PlaceDetailsView: React.FC = () => {
   };
 
   const renderPriceLevel = () => {
-    return Array(3).fill(0).map((_, index) => (
+    return Array(3).fill(0).map((_, index: number) => (
       <span 
         key={index} 
         className={`text-sm font-medium leading-none ${place.isPremium ? 'text-white' : ''}`}
@@ -444,7 +462,7 @@ const PlaceDetailsView: React.FC = () => {
                   {reviews.length} отзывов
                 </span>
                 <div className="w-[80px] h-[16px] flex gap-[2px]">
-                  {[...Array(5)].map((_, index) => (
+                  {[...Array(5)].map((_, index: number) => (
                     <Star
                       key={index}
                       size={16}
@@ -495,7 +513,7 @@ const PlaceDetailsView: React.FC = () => {
                   </div>
                   <div className="mb-2">
                     <div className="flex gap-[2px] mb-1">
-                      {[...Array(5)].map((_, star) => (
+                      {[...Array(5)].map((_, star: number) => (
                         <Star 
                           key={star}
                           className={`w-3 h-3 text-white fill-white ${
