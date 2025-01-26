@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Layers, X } from 'lucide-react';
-import type { Place, Collection } from '../../../types';
+import type { Collection, UIPlace } from '../../../types';
 import { api } from '../../../utils/api';
 
 interface AddContentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddPlace: (place: Place) => void;
+  onAddPlace: (place: UIPlace) => void;
   onAddCollection: (collection: Collection) => void;
-  availablePlaces: Place[];
+  availablePlaces: UIPlace[];
 }
 
 export const AddContentModal: React.FC<AddContentModalProps> = ({
@@ -137,9 +137,16 @@ export const AddContentModal: React.FC<AddContentModalProps> = ({
                 collections.map((collection) => (
                   <button
                     key={collection.id}
-                    onClick={() => {
-                      onAddCollection(collection);
-                      onClose();
+                    onClick={async () => {
+                      try {
+                        // Просто загружаем полные данные коллекции
+                        const fullCollection = await api.getCollection(collection.id);
+                        console.log('Loading collection for feed:', fullCollection);
+                        onAddCollection(fullCollection);
+                        onClose();
+                      } catch (error) {
+                        console.error('Error loading collection:', error);
+                      }
                     }}
                     className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-gray-50"
                   >

@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { PenSquare, Plus, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
-import PlaceCard from './PlaceCard';
 import FeaturedCollection from './FeaturedCollection';
-import { fetchFeedItems, fetchAllPlaces } from '../../../services/feedService';
-import type { Place, FeedItem, Collection } from '../../../types';
+import PlaceCard from './PlaceCard'; // Add import for PlaceCard
+import { fetchAllPlaces } from '../../../services/feedService';
+import type { Place, Collection } from '../../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AddContentModal } from './AddContentModal';
 import { api } from '../../../utils/api';
-import { useCategories } from '../../../hooks/useCategories';
 
-const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }: {
-  item: FeedItem;
+type FeedItemType = {
+  id: string;
+  order: number;
+  type: 'place' | 'collection';
+  data: any;
+};
+
+const FeedItemComponent = React.memo(({ item, index, isEditing, feedItems, setFeedItems }: {
+  item: FeedItemType;
   index: number;
   isEditing: boolean;
-  feedItems: FeedItem[];
-  setFeedItems: (items: FeedItem[]) => void;
+  feedItems: FeedItemType[];
+  setFeedItems: (items: FeedItemType[]) => void;
 }) => {
   const moveItem = (toIndex: number) => {
     const newItems = feedItems.map(item => ({ ...item }));
@@ -22,8 +28,6 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
     newItems.splice(toIndex, 0, movedItem);
     setFeedItems(newItems);
   };
-
-  const { getCategoryName } = useCategories();
 
   return (
     <motion.div 
@@ -40,7 +44,7 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
             onClick={() => index > 0 && moveItem(index - 1)}
             className={`p-1 rounded transition-colors ${index > 0 ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-not-allowed'}`}
             title={index > 0 ? "Переместить вверх" : "Нельзя переместить вверх"}
-            disabled={!index > 0}
+            disabled={index === 0}
           >
             <ArrowUp className={`w-5 h-5 ${index > 0 ? '' : 'text-gray-300'}`} />
           </button>
@@ -61,7 +65,7 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
             onClick={() => index < feedItems.length - 1 && moveItem(index + 1)}
             className={`p-1 rounded transition-colors ${index < feedItems.length - 1 ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-not-allowed'}`}
             title={index < feedItems.length - 1 ? "Переместить вниз" : "Нельзя переместить вниз"}
-            disabled={!(index < feedItems.length - 1)}
+            disabled={index === feedItems.length - 1}
           >
             <ArrowDown className={`w-5 h-5 ${index < feedItems.length - 1 ? '' : 'text-gray-300'}`} />
           </button>
@@ -70,28 +74,28 @@ const FeedItem = React.memo(({ item, index, isEditing, feedItems, setFeedItems }
       <div>
         {item.type === 'collection' ? (
           <FeaturedCollection collection={item.data} />
-        ) : (
+        ) : item.data ? (
           <PlaceCard 
-            id={parseInt(item.data.id)}
+            id={item.data.id}
             name={item.data.name}
             address={item.data.address}
             category_id={item.data.category_id}
-            main_photo_url={item.data.main_photo_url}
-            imageUrl={item.data.imageUrl || ''}
             description={item.data.description}
-            rating={item.data.rating}
-            distance={item.data.distance}
             isPremium={item.data.isPremium}
             priceLevel={item.data.priceLevel}
-            tagIds={item.data.PlaceTags?.map(tag => tag.tag_id.toString()) || []}
+            main_photo_url={item.data.main_photo_url}
+            imageUrl={item.data.main_photo_url}
+            rating={item.data.rating || 0}
+            distance={item.data.distance || '0 км'}
+            tagIds={item.data.PlaceTags?.map((tag: { tag_id: number }) => tag.tag_id) || []}
           />
-        )}
+        ) : null}
       </div>
     </motion.div>
   );
 });
 
-FeedItem.displayName = 'FeedItem';
+FeedItemComponent.displayName = 'FeedItemComponent';
 
 const AddNewPlaceButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   return (
@@ -108,7 +112,7 @@ const AddNewPlaceButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
 };
 
 const FeedEditor: React.FC = () => {
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedItems, setFeedItems] = useState<FeedItemType[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,38 +120,60 @@ const FeedEditor: React.FC = () => {
   const [availablePlaces, setAvailablePlaces] = useState<Place[]>([]);
 
   useEffect(() => {
-    const fetchFeed = async () => {
+    const loadFeed = async () => {
       try {
         setLoading(true);
         const response = await api.getFeed();
-        
-        // Получаем актуальную информацию о каждом месте
-        const updatedItems = await Promise.all(
-          response.items.map(async (item) => {
-            if (item.type === 'place') {
-              try {
-                const placeData = await api.getPlace(item.data.id || item.id);
+        const items = await Promise.all(
+          (response.items as FeedItemType[]).map(async (value) => {
+            if (value.type === 'collection') {
+              // Загружаем данные для коллекции
+              const collectionData = value.data;
+              if (collectionData.places?.length) {
+                // Загружаем данные для каждого места в коллекции
+                const placesWithData = await Promise.all(
+                  collectionData.places.map(async (place: any) => {
+                    try {
+                      const placeData = await api.getPlace(place.id);
+                      return {
+                        ...placeData,
+                        id: placeData.id.toString()
+                      };
+                    } catch (error) {
+                      console.error(`Error loading place ${place.id} for collection:`, error);
+                      return place;
+                    }
+                  })
+                );
                 return {
-                  ...item,
-                  data: placeData
+                  ...value,
+                  data: {
+                    ...collectionData,
+                    places: placesWithData
+                  }
                 };
-              } catch {
-                return item;
               }
+              return value;
             }
-            return item;
+            const placeId = value.id;
+            const placeData = await api.getPlace(placeId);
+            return {
+              ...value,
+              data: placeData
+            } as FeedItemType;
           })
         );
-
-        setFeedItems(updatedItems);
+        console.log('Loaded feed items:', items);
+        setFeedItems(items);
       } catch (error) {
-        setError('Failed to fetch feed');
+        console.error('Failed to load feed:', error);
+        setError('Failed to load feed items');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchFeed();
+    loadFeed();
   }, []);
 
   useEffect(() => {
@@ -175,45 +201,68 @@ const FeedEditor: React.FC = () => {
     }
   }, [isModalOpen, feedItems]);
 
-  const handleAddPlace = (place: Place) => {
-    const newItem: FeedItem = {
+  const handleAddPlace = (place: any) => {
+    const newItem: FeedItemType = {
       id: place.id,
       type: 'place',
       order: feedItems.length + 1,
-      data: place
+      data: {
+        ...place,
+        id: place.id,
+        PlaceTags: [],
+        mainTag: place.mainTag
+      }
     };
     setFeedItems(prevItems => [...prevItems, newItem]);
     setIsModalOpen(false);
   };
 
-  const handleAddCollection = async (collection: Collection) => {
+  const handleAddCollection = async (collection: Collection & { places_ids?: string[] }) => {
     try {
+      console.log('Adding collection to feed:', collection);
+      
+      // Загружаем данные для каждого места из places_ids
       const places = await Promise.all(
-        (collection.places_ids || []).map(id => api.getPlace(id))
+        (collection.places_ids || []).map(async (placeId: string) => {
+          const placeData = await api.getPlace(placeId);
+          return {
+            ...placeData,
+            id: placeData.id.toString(),
+            imageUrl: placeData.main_photo_url,
+            mainTag: (placeData as any).Category?.name || '',
+            rating: placeData.rating || 0,
+            distance: placeData.distance || '0 km'
+          };
+        })
       );
-      const newItem: FeedItem = {
-        id: collection.id.toString(), // Используем ID существующей коллекции
+
+      console.log('Loaded places:', places);
+
+      // Создаем элемент ленты из коллекции
+      const feedCollection: FeedItemType = {
+        id: collection.id.toString(),
         type: 'collection',
         order: feedItems.length + 1,
         data: {
           ...collection,
-          places
-        },
+          places // Добавляем загруженные места в коллекцию
+        }
       };
-      setFeedItems(prevItems => [...prevItems, newItem]);
-    } catch {
-      // Игнорируем ошибку, просто не добавляем коллекцию
+
+      console.log('Created feed item:', feedCollection);
+      
+      // Добавляем в ленту
+      setFeedItems(prevItems => {
+        const newItems = [...prevItems, feedCollection];
+        console.log('Updated feed items:', newItems);
+        return newItems;
+      });
+    } catch (error) {
+      console.error('Error adding collection:', error);
     }
-    setIsModalOpen(false);
   };
 
-  const moveItem = (fromIndex: number, toIndex: number) => {
-    const newItems = [...feedItems];
-    const [movedItem] = newItems.splice(fromIndex, 1);
-    newItems.splice(toIndex, 0, movedItem);
-    setFeedItems(newItems);
-    // TODO: Save new order to backend
-  };
+
 
   if (loading) {
     return (
@@ -267,7 +316,7 @@ const FeedEditor: React.FC = () => {
         <div className={`container mx-auto p-4 ${isEditing ? 'pr-20' : ''}`}>
           <AnimatePresence>
             {feedItems.map((item, index) => (
-              <FeedItem
+              <FeedItemComponent
                 key={`${item.type}-${item.id}`}
                 item={item}
                 index={index}

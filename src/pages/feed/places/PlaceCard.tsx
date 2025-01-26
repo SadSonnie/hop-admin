@@ -1,7 +1,5 @@
-import { Star } from 'lucide-react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Place } from '../../../types';
-import { mockTags as tags} from '../../../data/mockTags';
 import { useCategories } from '../../../hooks/useCategories';
 
 // Импортируем все иконки
@@ -36,29 +34,40 @@ const tagIcons: { [key: string]: string } = {
   "13": tagActiveLeisure,
 };
 
-interface PlaceCardProps extends Place {
+interface PlaceCardProps {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  isPremium?: boolean;
+  priceLevel?: number;
+  rating?: number;
+  distance?: number;
+  tagIds?: number[];
+  main_photo_url?: string;
+  category_id?: number;
+  address?: string;
   onClick?: () => void;
 }
 
-const PlaceCard = ({ 
+const PlaceCard: React.FC<PlaceCardProps> = ({ 
   id,
   name, 
-  mainTag,
   description, 
-  rating, 
-  distance, 
+  rating = 0, 
+  distance = 0, 
   imageUrl,
   main_photo_url,
   isPremium, 
   priceLevel = 1,
   tagIds = [],
   category_id,
+  address,
   onClick 
-}: PlaceCardProps) => {
+}) => {
   const navigate = useNavigate();
   const { getCategoryName } = useCategories();
-  const categoryName = getCategoryName(category_id);
-  const ratingStyles = 'flex items-center gap-1 text-sm';
+  const categoryName = category_id ? getCategoryName(category_id) : '';
 
   const handleClick = () => {
     navigate(`/places/${id}`);
@@ -79,11 +88,11 @@ const PlaceCard = ({
 
   const displayTags = (tagIds || [])
     .slice(0, 4)
-    .map(id => ({
-      ...tags.find(tag => tag.id === id),
+    .map((id: number) => ({
+      ...{ id, name: '' },
       iconSrc: tagIcons[id]
     }))
-    .filter(tag => tag !== undefined);
+    .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
 
   return (
     <div 
@@ -107,7 +116,6 @@ const PlaceCard = ({
             style={{ background: 'rgba(30, 71, 247, 0.2)' }}
           >
             <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{rating}</span>
-            <Star className="w-4 h-4 text-white fill-white" />
           </div>
           {/* Тег цены */}
           <div 
@@ -133,7 +141,7 @@ const PlaceCard = ({
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-medium">{categoryName ? `${categoryName} ${name}` : name}</h3>
           <div className="flex items-center gap-2">
-            {displayTags.map((tag, index) => (
+            {displayTags.map((tag, index: number) => (
               <img 
                 key={`tag-${id}-${tag?.id || index}`} 
                 src={tag?.iconSrc} 
@@ -145,6 +153,7 @@ const PlaceCard = ({
           </div>
         </div>
         <p className="text-sm opacity-80">{description}</p>
+        <p className="text-sm opacity-80">{address}</p>
       </div>
     </div>
   );

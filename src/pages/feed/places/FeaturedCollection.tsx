@@ -1,39 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import type { Collection } from '../../../types';
+import React from 'react';
 import CollectionCard from './CollectionCard';
-import api from '../../../utils/api';
-
-interface PlaceData {
-  [key: number]: any; // Assuming Place type is not defined in the provided code
-}
+import { FeedCollection } from '../../../types/feed';
+import { UIPlace } from '../../../types';
 
 interface FeaturedCollectionProps {
-  collection: Collection;
-  onPlaceClick?: (placeId: number) => void;
+  collection: FeedCollection;
+  onPlaceClick?: (placeId: string) => void;
 }
 
 const FeaturedCollection: React.FC<FeaturedCollectionProps> = ({
   collection,
-  onPlaceClick,
 }) => {
-  const [placesData, setPlacesData] = useState<PlaceData>({});
+  console.log('FeaturedCollection received:', collection);
 
-  useEffect(() => {
-    const fetchPlacesData = async () => {
-      const data: PlaceData = {};
-      for (const place of collection.places) {
-        try {
-          const placeData = await api.getPlace(place.id);
-          data[place.id] = placeData;
-        } catch (error) {
-          console.error(`Error fetching place ${place.id}:`, error);
-        }
-      }
-      setPlacesData(data);
-    };
-
-    fetchPlacesData();
-  }, [collection.places]);
+  // Преобразуем места в формат UIPlace
+  const places: UIPlace[] = (collection.places?.map(place => ({
+    ...place,
+    imageUrl: place.main_photo_url,
+    mainTag: (place as any).Category?.name || '',
+    rating: place.rating || 0,
+    distance: place.distance || '0 km'
+  })) || []) as UIPlace[];
 
   return (
     <div className="mb-6 w-full">
@@ -45,12 +32,9 @@ const FeaturedCollection: React.FC<FeaturedCollectionProps> = ({
           )}
         </div>
         <div className="collection-cards flex overflow-x-auto pb-4 px-2 hide-scrollbar">
-          {collection.places?.map((place) => (
-            <div key={`collection-${collection.id}-place-${place.id}`} className="flex-none">
-              <CollectionCard
-                place={placesData[place.id] || place}
-                onClick={onPlaceClick ? () => onPlaceClick(place.id) : undefined}
-              />
+          {places.map((place) => (
+            <div key={place.id} className="flex-none mr-4 last:mr-0">
+              <CollectionCard place={place} />
             </div>
           ))}
         </div>
