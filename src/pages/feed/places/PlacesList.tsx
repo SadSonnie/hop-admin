@@ -1,36 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import FeaturedCollection from './FeaturedCollection';
-import { fetchFeedItems } from '../feedService';
-import type { Place, FeedItem, Collection } from '../../types';
+import React, { useState } from 'react';
+import type { Place } from '../../../types/index';
 
 const PlacesList: React.FC = () => {
-  const navigate = useNavigate();
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadFeed = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const items = await fetchFeedItems();
-        setFeedItems(items.sort((a, b) => a.order - b.order));
-      } catch (error) {
-        console.error('Failed to load feed:', error);
-        setError('Failed to load feed items');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadFeed();
-  }, []);
-
-  const handlePlaceClick = (place: Place) => {
-    navigate(`/places/${place.id}`);
-  };
+  const [feedItems,] = useState<Place[]>([]);
+  const [loading,] = useState(true);
+  const [error,] = useState<string | null>(null);
 
   if (loading) {
     return (

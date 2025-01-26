@@ -1,4 +1,4 @@
-import type { Place, Review, Collection, UserProfile, Article } from '../types';
+import type { Place, Review, Collection, UserProfile, Article } from '../../types/index';
 
 // Интерфейсы для запросов
 interface GetFeedParams {

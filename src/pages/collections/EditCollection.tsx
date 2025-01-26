@@ -13,13 +13,12 @@ interface Place {
 const { TextArea } = Input;
 
 const EditCollection: React.FC = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [places, setPlaces] = useState<Place[]>([]);
-  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(true);
 
   useEffect(() => {
@@ -30,18 +29,12 @@ const EditCollection: React.FC = () => {
   const loadCollection = async () => {
     try {
       setLoadingInitial(true);
-      const collection = await api.getCollection(id!);
+      const collection = await api.getCollection(Number(id));
       form.setFieldsValue({
         name: collection.name,
         description: collection.description,
         places: collection.places_ids,
       });
-      if (collection.places_ids) {
-        const selected = places.filter(place => 
-          collection.places_ids.includes(place.id)
-        );
-        setSelectedPlaces(selected);
-      }
     } catch (error) {
       console.error('Failed to load collection:', error);
       message.error('Не удалось загрузить подборку');
@@ -64,15 +57,13 @@ const EditCollection: React.FC = () => {
   };
 
   const handlePlaceSelect = (selectedIds: number[]) => {
-    const selected = places.filter(place => selectedIds.includes(place.id));
-    setSelectedPlaces(selected);
     form.setFieldsValue({ places: selectedIds });
   };
 
   const onFinish = async (values: any) => {
     try {
       setLoading(true);
-      await api.updateCollection(id!, {
+      await api.updateCollection(Number(id), {
         name: values.name,
         description: values.description,
         places_ids: values.places,

@@ -5,7 +5,6 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Place } from '../../types';
 import LocationCard from './LocationCard';
 import { api } from '../../utils/api';
-import { PageHeader } from '../../components/PageHeader/PageHeader';
 
 const LocationsList: React.FC = () => {
   const navigate = useNavigate();

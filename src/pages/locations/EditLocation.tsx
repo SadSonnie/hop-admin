@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Place, BasePlace } from '../../types';
+import { BasePlace } from '../../types/index';
 import { mockTags } from '../../data/mockTags';
-import { Plus, X, MapPin, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, MapPin } from 'lucide-react';
 import { api } from '../../utils/api';
 import { notification } from 'antd';
 
@@ -18,8 +18,11 @@ interface LocationForm extends Omit<BasePlace, 'id'> {
   images?: string[];
   isPremium?: boolean;
   priceLevel?: number;
-  coordinates?: { lat: number; lng: number };
-  tags?: string[];
+  coordinates?: { 
+    lat: number;
+    lng: number;
+  };
+  tags: number[];
   phone?: string;
   mainImage: File | null;
   additionalImages: File[];
@@ -82,7 +85,7 @@ export const EditLocation: React.FC = () => {
           isPremium: placeData.isPremium || false,
           priceLevel: placeData.priceLevel || 1,
           coordinates: placeData.coordinates || { lat: 0, lng: 0 },
-          tags: placeData.tags_ids?.map(id => id.toString()) || [],
+          tags: placeData.tags_ids || [],
           phone: placeData.phone || '',
           mainImage: null,
           additionalImages: []
@@ -119,9 +122,6 @@ export const EditLocation: React.FC = () => {
     }
 
     try {
-      // Преобразуем теги в числовые id
-      const tags_ids = form.tags?.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) || [];
-
       // Преобразуем mainTag в числовой id
       const category_id = parseInt(form.mainTag, 10);
       if (isNaN(category_id)) {
@@ -136,7 +136,7 @@ export const EditLocation: React.FC = () => {
         name: form.name,
         address: form.address,
         category_id,
-        ...(tags_ids.length > 0 && { tags_ids }),
+        tags_ids: form.tags,
       };
 
       console.log('Saving place data:', placeData);
@@ -320,37 +320,33 @@ export const EditLocation: React.FC = () => {
                   onClick={() => {
                     setForm(prev => ({
                       ...prev,
-                      tags: prev.tags.includes(tag.id)
+                      tags: prev.tags?.includes(tag.id)
                         ? prev.tags.filter(t => t !== tag.id)
-                        : [...prev.tags, tag.id]
+                        : [...(prev.tags || []), tag.id]
                     }));
                   }}
                   className={`px-3 py-2 rounded-lg text-left text-sm transition-all ${
-                    form.tags.includes(tag.id)
+                    form.tags?.includes(tag.id)
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <img src={tag.icon} alt="" className="w-5 h-5" />
-                    <span>{tag.name}</span>
-                  </div>
+                  {tag.name}
                 </button>
               ))}
             </div>
-            {form.tags.length > 0 && (
+            {form.tags?.length > 0 && (
               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Выбранные теги:</span>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {form.tags.map(tagId => {
+                  {form.tags?.map(tagId => {
                     const tag = mockTags.find(t => t.id === tagId);
-                    if (!tag) return null;
-                    return (
+                    return tag ? (
                       <span key={tag.id} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         <img src={tag.icon} alt="" className="w-4 h-4" />
                         {tag.name}
                       </span>
-                    );
+                    ) : null;
                   })}
                 </div>
               </div>

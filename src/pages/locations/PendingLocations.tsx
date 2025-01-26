@@ -1,21 +1,43 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Location } from '../../types';
+import type { Place } from '../../types';
 
-const mockPendingLocations: Location[] = [
+interface PendingPlace extends Place {
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+const mockPendingLocations: PendingPlace[] = [
   {
     id: '1',
     name: 'Sunset Cafe',
     description: 'A cozy cafe with a beautiful sunset view',
-    rating: 4.5,
-    status: 'pending'
+    status: 'pending',
+    address: '123 Sunset Blvd',
+    category_id: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    Category: { id: 1, name: 'Cafe' },
+    PlaceTags: [],
+    main_photo_url: '',
+    CollectionPlaces: [],
+    PlacePhotos: [],
+    photos: []
   },
   {
     id: '2',
     name: 'Mountain View Restaurant',
     description: 'Fine dining with panoramic mountain views',
-    rating: 4.8,
-    status: 'pending'
+    status: 'pending',
+    address: '456 Mountain Road',
+    category_id: 2,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    Category: { id: 2, name: 'Restaurant' },
+    PlaceTags: [],
+    main_photo_url: '',
+    CollectionPlaces: [],
+    PlacePhotos: [],
+    photos: []
   }
 ];
 

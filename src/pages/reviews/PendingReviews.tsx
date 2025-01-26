@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Review } from '../../types';
+import type { Review } from '@/types/index';
 
 const mockPendingReviews: Review[] = [
   {
@@ -9,6 +9,7 @@ const mockPendingReviews: Review[] = [
     userId: 'user1',
     rating: 4,
     content: 'Great place! The atmosphere is amazing and the staff is very friendly.',
+    date: new Date().toISOString(),
     status: 'pending'
   },
   {
@@ -17,6 +18,7 @@ const mockPendingReviews: Review[] = [
     userId: 'user2',
     rating: 5,
     content: 'Best restaurant in town. The food is absolutely delicious!',
+    date: new Date().toISOString(),
     status: 'pending'
   }
 ];

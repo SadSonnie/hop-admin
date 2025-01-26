@@ -72,11 +72,27 @@ export interface Tag {
 }
 
 export interface Review {
-  id: number;
-  text: string;
+  id: string;
+  content: string;
   rating: number;
-  author: string;
+  authorName: string;
   date: string;
+  authorAvatar?: string;
+  title?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  photos?: string[];
+  locationId?: string;
+  userId?: string;
+}
+
+export interface ExtendedReview extends Review {
+  authorName: string;
+  authorAvatar: string;
+  title: string;
+  status: 'pending' | 'approved' | 'rejected';
+  photos: string[];
+  locationId: string;
+  userId: string;
 }
 
 export interface Collection {
@@ -85,6 +101,25 @@ export interface Collection {
   title?: string;
   description?: string;
   places: Place[];
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UIPlace extends Place {
+  imageUrl?: string;
+  mainTag?: string;
+  rating?: number;
+  distance?: string;
 }
 
 // Вспомогательный тип для создания новых объектов

@@ -1,16 +1,20 @@
 import React from 'react';
 import { Star, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { Place } from '../../types';
+import type { UIPlace } from '../../../types.ts';
 import { DEFAULT_PLACE_IMAGE } from './constants';
 import { useCategories } from '../../../hooks/useCategories';
 
 interface CollectionCardProps {
-  place: Place;
+  place: UIPlace;
   onClick?: () => void;
 }
 
 const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
+  if (!place) {
+    return null;
+  }
+
   const navigate = useNavigate();
   const { getCategoryName } = useCategories();
 
@@ -21,8 +25,8 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
 
   const renderPriceLevel = () => {
     return Array(3).fill(0).map((_, index) => {
-      if (place.isPremium) {
-        const color = index < (place.priceLevel || 1) ? '#1e47f7' : '#9aacfb';
+      if (place?.isPremium) {
+        const color = index < (place?.priceLevel || 1) ? '#1e47f7' : '#9aacfb';
         return (
           <span 
             key={index} 
@@ -33,7 +37,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
           </span>
         );
       } else {
-        const color = index < (place.priceLevel || 1) ? 'white' : '#8d8d8e';
+        const color = index < (place?.priceLevel || 1) ? 'white' : '#8d8d8e';
         return (
           <span 
             key={index} 
@@ -47,7 +51,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
     });
   };
 
-  const metricStyles = place.isPremium ? {
+  const metricStyles = place?.isPremium ? {
     background: '#eceffd',
     textColor: '#1e47f7',
     iconColor: '#1e47f7'
@@ -67,7 +71,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
       {/* Изображение с метриками */}
       <div className="relative h-48">
         <img
-          src={place.main_photo_url || place.imageUrl || DEFAULT_PLACE_IMAGE}
+          src={place.main_photo_url || DEFAULT_PLACE_IMAGE}
           alt={place.name}
           className={`w-full h-full object-cover ${
             place.isPremium ? 'brightness-105' : ''
@@ -107,7 +111,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ place, onClick }) => {
               className="ml-1 text-[12px] font-medium leading-[14.38px] tracking-[-0.02em]" 
               style={{ color: metricStyles.textColor }}
             >
-              {`${place.distance}`}
+              {place.distance}
             </span>
           </div>
           <div 

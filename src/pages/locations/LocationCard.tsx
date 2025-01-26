@@ -3,21 +3,18 @@ import { Star } from 'lucide-react';
 import { Place } from '../../types';
 import { useCategories } from '../../hooks/useCategories';
 
-interface LocationCardProps extends Place {
+type LocationCardProps = Pick<Place, 'id' | 'name' | 'address' | 'category_id' | 'description' | 'main_photo_url' | 'isPremium' | 'priceLevel'> & {
   onClick?: () => void;
   onDelete?: () => void;
-}
+};
 
 const LocationCard: React.FC<LocationCardProps> = ({ 
-  id,
   name, 
-  mainTag,
   category_id,
   description, 
-  rating, 
-  imageUrl, 
+  main_photo_url, 
   isPremium, 
-  priceLevel = 1,
+  priceLevel,
   onClick,
   onDelete
 }) => {
@@ -32,11 +29,12 @@ const LocationCard: React.FC<LocationCardProps> = ({
   };
 
   const renderPriceLevel = () => {
+    const level = priceLevel ?? 1; // Default to 1 if undefined
     return Array(3).fill(0).map((_, index) => (
       <span 
         key={index} 
         className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.04em] text-white" 
-        style={{ opacity: index < priceLevel ? 1 : 0.5 }}
+        style={{ opacity: index < level ? 1 : 0.5 }}
       >
         ₽
       </span>
@@ -52,7 +50,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
       {/* Изображение с метриками */}
       <div className="relative h-[140px] rounded-xl overflow-hidden mx-4 mt-4">
         <img
-          src={imageUrl}
+          src={main_photo_url}
           alt={name}
           className="w-full h-full object-cover rounded-xl"
         />
@@ -63,7 +61,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
             className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center gap-1"
             style={{ background: 'rgba(30, 71, 247, 0.2)' }}
           >
-            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{rating}</span>
+            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">0</span>
             <Star className="w-4 h-4 text-white fill-white" />
           </div>
           {/* Тег цены */}

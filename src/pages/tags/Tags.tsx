@@ -5,6 +5,7 @@ import {
   Modal,
   Form,
   Input,
+  message,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { PageHeader } from '../../components/PageHeader/PageHeader';
@@ -14,7 +15,6 @@ import { mockTags } from '../../data/mockTags';
 export const Tags: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -61,24 +61,7 @@ export const Tags: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (values: any) => {
-    // Закомментированный код создания через API
-    /*
-    try {
-      setIsLoading(true);
-      await api.createTag({
-        name: values.name,
-      });
-      message.success('Тег успешно создан');
-      setIsModalVisible(false);
-      fetchTags();
-    } catch (error) {
-      console.error('Error creating tag:', error);
-      message.error('Не удалось создать тег');
-    } finally {
-      setIsLoading(false);
-    }
-    */
+  const handleSubmit = async () => {
     // Временно просто показываем сообщение
     message.info('Функция создания временно отключена');
     setIsModalVisible(false);
@@ -138,7 +121,6 @@ export const Tags: React.FC = () => {
           rowKey="id"
           pagination={false}
           showHeader={false}
-          loading={isLoading}
         />
       </div>
 

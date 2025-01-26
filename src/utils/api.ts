@@ -1,5 +1,16 @@
 import type { Place, Review, Category, Tag } from '../types';
 
+interface ImportMetaEnv {
+  readonly VITE_APP_URL: string;
+  readonly DEV: boolean;
+}
+
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
 const isDevelopment = import.meta.env.DEV;
 const BASE_URL = import.meta.env.VITE_APP_URL;
 
@@ -51,11 +62,15 @@ interface GetFeedParams {
   sort?: 'newest' | 'popular' | 'nearest';
 }
 
-interface SearchParams {
+interface SearchParamsBase {
   query: string;
   tags?: string[];
   priceLevel?: number;
   isPremium?: boolean;
+}
+
+type SearchParams = SearchParamsBase & {
+  [key: string]: string | undefined;
 }
 
 interface UserProfile {
@@ -65,21 +80,12 @@ interface UserProfile {
   avatar?: string;
 }
 
-interface Collection {
-  id: number;
-  name: string;
-  description: string;
-  places_ids: number[];
+interface LocalCategory extends Category {
+  // Additional local properties if needed
 }
 
-interface Category {
-  id: string;
-  // Add other category properties here
-}
-
-interface Tag {
-  id: string;
-  // Add other tag properties here
+interface LocalTag extends Tag {
+  // Additional local properties if needed
 }
 
 interface CreatePlaceData {
@@ -112,9 +118,20 @@ interface FeedItem {
   };
 }
 
-interface FeedResponse {
+export interface FeedResponse {
   items: FeedItem[];
   total: number;
+}
+
+interface TelegramWebApp {
+  initData: string;
+  // Add other Telegram WebApp properties if needed
+}
+
+declare global {
+  var Telegram: {
+    WebApp: TelegramWebApp;
+  };
 }
 
 export const api = {
@@ -141,7 +158,7 @@ export const api = {
   getCategories: () => apiRequest('/categories'),
   
 
-  createCategory: (data: Omit<Category, 'id'>) => apiRequest('/categories', {
+  createCategory: (data: Omit<LocalCategory, 'id'>) => apiRequest('/categories', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -149,7 +166,7 @@ export const api = {
     body: JSON.stringify(data),
   }),
   
-  updateCategory: (id: string, data: Partial<Category>) => apiRequest(`/categories/${id}`, {
+  updateCategory: (id: string, data: Partial<LocalCategory>) => apiRequest(`/categories/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -168,7 +185,7 @@ export const api = {
   // Теги
   getTags: () => apiRequest('/tags'),
   
-  createTag: (data: Omit<Tag, 'id'>) => apiRequest('/tags', {
+  createTag: (data: Omit<LocalTag, 'id'>) => apiRequest('/tags', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -288,34 +305,21 @@ export const api = {
   }),
 
   // Дополнительные методы для мест
-  getFeed: () => {
-    return apiRequest('/feed')
-      .then(response => {
-        const items = response.items || [];
-        return {
-          items: items.map((item: any) => {
-            if (item.type === 'place' && item.data) {
-              // Сохраняем все поля места и его category_id
-              return {
-                id: item.id,
-                type: item.type,
-                data: {
-                  ...item.data,
-                  id: item.data.id || item.id,
-                  category_id: item.data.category_id
-                }
-              };
-            }
-            return item;
-          })
-        };
-      })
-      .catch(error => {
-        if (error.message.includes('404')) {
-          return { items: [] };
-        }
-        throw error;
-      });
+  getFeed: async (params?: GetFeedParams): Promise<FeedResponse> => {
+    const response = await apiRequest('/feed', { 
+      params: params as Record<string, string>
+    });
+    
+    const items = response.items || [];
+    return {
+      items: items.map((item: any) => ({
+        id: item.id,
+        type: item.type,
+        order: item.order || 0,
+        data: item.data
+      })),
+      total: response.total || items.length
+    };
   },
 
   saveFeed: (items: FeedItem[]): Promise<void> => {
@@ -347,8 +351,15 @@ export const api = {
     });
   },
 
-  searchPlaces: (params: SearchParams): Promise<Place[]> => 
-    apiRequest('/places/search', { params }),
+  searchPlaces: (params: SearchParams): Promise<Place[]> => {
+    const stringParams: Record<string, string> = {};
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        stringParams[key] = String(value);
+      }
+    });
+    return apiRequest('/places/search', { params: stringParams });
+  },
   
   addToFavorites: (placeId: number): Promise<void> => 
     apiRequest('/places/favorites', {
@@ -370,7 +381,7 @@ export const api = {
     }),
 
   // Подборки
-  getCollections: (params?: { limit?: number; offset?: number }) => 
+  getCollections: (params?: { limit?: string; offset?: string }) => 
     apiRequest('/collections', {
       method: 'GET',
       params,

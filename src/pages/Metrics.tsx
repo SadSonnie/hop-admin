@@ -1,6 +1,6 @@
 import React from 'react';
 import { MetricGrid } from '../components/metrics/MetricGrid';
-import { MetricCardType } from '../types';
+import { MetricCardType } from '../types/index';
 
 // Sample data for the metrics
 export const metrics: MetricCardType[] = [

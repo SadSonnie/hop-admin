@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MetricCard as MetricCardType } from '../types';
+import type { MetricCardType } from '../types/index';
 import clsx from 'clsx';
 
 interface Props extends MetricCardType {

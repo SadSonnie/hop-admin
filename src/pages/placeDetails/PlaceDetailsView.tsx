@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Share2, ArrowLeft, MapPin, Star, Phone, Mail, Instagram } from 'lucide-react';
-import { Coffee, Wine, Users } from 'lucide-react';
+import { Share2, ArrowLeft, MapPin, Star, Phone, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Place, Review } from '../../types';
+import type { Place, ExtendedReview } from '@/types';
 import api from '../../utils/api';
 import ReviewCard from './ReviewCard';
 import { RatingStars } from './RatingStars';
@@ -25,12 +24,6 @@ const tagIcons: { [key: string]: string } = {
   "13": "/icons/tag_active_leisure.svg",
 };
 
-interface ExtendedReview extends Review {
-  authorName: string;
-  authorAvatar: string;
-  title?: string;
-}
-
 interface PlaceWithExtendedProps extends Place {
   reviews?: ExtendedReview[];
   instagram?: string;
@@ -47,8 +40,7 @@ const PlaceDetailsView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [place, setPlace] = useState<PlaceWithExtendedProps | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [, setCategories] = useState<any[]>([]);
   const [[page, direction], setPage] = useState<[number, number]>([0, 0]);
   const [wasHere, setWasHere] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -76,7 +68,6 @@ const PlaceDetailsView: React.FC = () => {
       if (!id) return;
       
       try {
-        setLoading(true);
         const placeData = await api.getPlace(id);
         
         setPlace({
@@ -97,8 +88,6 @@ const PlaceDetailsView: React.FC = () => {
         });
       } catch (error) {
         console.error('Error fetching place:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -115,29 +104,17 @@ const PlaceDetailsView: React.FC = () => {
     }
   }, [place?.images]);
 
-  useEffect(() => {
-    setLoading(false);
-  }, [place]);
-
-  if (loading || !place) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-gray-600">Загрузка...</div>
-      </div>
-    );
-  }
-
   const handleBack = () => {
     navigate('/');
   };
 
-  const images = place.images || [place.imageUrl];
+  const images = place?.images || [place?.imageUrl];
   const imageIndex = Math.abs(page % images.length);
   const nextImageIndex = Math.abs((page + 1) % images.length);
   const prevImageIndex = Math.abs((page - 1) % images.length);
 
   // Расчет средней оценки и количества отзывов
-  const reviews = place.reviews || [];
+  const reviews = place?.reviews || [];
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum: number, review: ExtendedReview) => sum + review.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
@@ -160,11 +137,11 @@ const PlaceDetailsView: React.FC = () => {
     return Array(3).fill(0).map((_, index: number) => (
       <span 
         key={index} 
-        className={`text-sm font-medium leading-none ${place.isPremium ? 'text-white' : ''}`}
+        className={`text-sm font-medium leading-none ${place?.isPremium ? 'text-white' : ''}`}
         style={{ 
-          color: place.isPremium 
+          color: place?.isPremium 
             ? 'white' 
-            : index < (place.priceLevel ?? 0) 
+            : index < (place?.priceLevel ?? 0) 
               ? '#1e47f7' 
               : '#9aacfb' 
         }}
@@ -172,19 +149,6 @@ const PlaceDetailsView: React.FC = () => {
         ₽
       </span>
     ));
-  };
-
-  const getTagIcon = (tag: string) => {
-    switch (tag) {
-      case 'cafe':
-        return <Coffee className="w-4 h-4 text-white" />;
-      case 'bar':
-        return <Wine className="w-4 h-4 text-white" />;
-      case 'restaurant':
-        return <Users className="w-4 h-4 text-white" />;
-      default:
-        return null;
-    }
   };
 
   const slideVariants = {
@@ -201,6 +165,14 @@ const PlaceDetailsView: React.FC = () => {
       zIndex: 0
     })
   };
+
+  if (!place) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-gray-600">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
@@ -433,9 +405,6 @@ const PlaceDetailsView: React.FC = () => {
             )}
             {place.instagram && (
               <div className="flex items-center gap-3 py-3">
-                <div className={`flex items-center justify-center w-[40px] h-[40px] rounded-[100px] ${place.isPremium ? 'bg-white' : 'bg-[#FAFAFA]'}`}>
-                  <Instagram className={`w-6 h-6 ${place.isPremium ? 'text-[#2846ED]' : 'text-[#020203]'}`} />
-                </div>
                 <a href={`https://instagram.com/${place.instagram}`} className={`text-[14px] font-[500] leading-[16.77px] tracking-[-0.02em] ${place.isPremium ? 'text-white' : 'text-[#020203]'}`}>@{place.instagram}</a>
               </div>
             )}
@@ -526,7 +495,7 @@ const PlaceDetailsView: React.FC = () => {
                       {review.title}
                     </h3>
                     <p className="text-[14px] font-[400] leading-[16.77px] tracking-[-0.02em] text-white">
-                      {review.text}
+                      {review.content}
                     </p>
                   </div>
                 </div>

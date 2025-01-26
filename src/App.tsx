@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ContentManagement } from './pages/ContentManagement';
 import { Metrics } from './pages/Metrics';

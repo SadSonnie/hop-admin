@@ -17,7 +17,6 @@ const AddCollection: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [places, setPlaces] = useState<Place[]>([]);
-  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(true);
 
   useEffect(() => {
@@ -29,7 +28,7 @@ const AddCollection: React.FC = () => {
       setLoadingPlaces(true);
       const response = await api.getAllPlaces();
       console.log('Places loaded:', response);
-      setPlaces(Array.isArray(response) ? response : []);
+      setPlaces(response);
     } catch (error) {
       console.error('Failed to load places:', error);
       message.error('Не удалось загрузить места');
@@ -39,8 +38,6 @@ const AddCollection: React.FC = () => {
   };
 
   const handlePlaceSelect = (selectedIds: number[]) => {
-    const selected = places.filter(place => selectedIds.includes(place.id));
-    setSelectedPlaces(selected);
     form.setFieldsValue({ places: selectedIds });
   };
 
