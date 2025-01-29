@@ -150,6 +150,17 @@ bot.on('callback_query', async (callbackQuery) => {
         console.log(`Toggling role for user ID: ${userId}`);
         
         try {
+            // First check if we can access the user
+            try {
+                await bot.getChat(userId);
+            } catch (chatError) {
+                await bot.answerCallbackQuery(callbackQuery.id, {
+                    text: '❌ Невозможно изменить роль: пользователь недоступен или заблокировал бота',
+                    show_alert: true
+                });
+                return;
+            }
+
             const webAppData = generateWebAppData({
                 from: callbackQuery.from
             });
