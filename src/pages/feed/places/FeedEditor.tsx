@@ -288,12 +288,13 @@ const FeedEditor: React.FC = () => {
           onClick={async () => {
             if (isEditing) {
               try {
-                const items = feedItems.map(item => ({
-                  id: item.data.id, // Используем ID из data
+                const items = feedItems.map((item, index) => ({
+                  id: item.id,
                   type: item.type,
+                  order: index + 1,
                   data: item.data
                 }));
-                console.log('Saving feed items:', items); // Добавляем логирование
+                console.log('Saving feed items:', items);
                 await api.saveFeed(items);
               } catch (error) {
                 console.error('Failed to save feed:', error);

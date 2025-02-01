@@ -6,7 +6,7 @@ const axios = require('axios');
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 // Replace 'YOUR_BOT_TOKEN' with the token from BotFather
-const bot = new TelegramBot('7692758384:AAFQ-3oNpPbI5vtPuoxVIl0cgCKhTjTfa9Q', { polling: true });
+const bot = new TelegramBot('7338184879:AAFfgHPQgFXy60wlMz2-3_X_EQO8vtCbQE4', { polling: true });
 
 // Кэш пользователей
 const userCache = new Map();

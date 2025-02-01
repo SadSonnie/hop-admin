@@ -11,6 +11,20 @@ interface Category {
   name: string;
 }
 
+interface PlacePhoto {
+  id: number;
+  url: string;
+  is_main: boolean;
+}
+
+interface PlaceTag {
+  tag_id: number;
+  placesItems: {
+    id: number;
+    name: string;
+  };
+}
+
 // Расширяем базовый интерфейс необязательными полями для формы
 interface LocationForm extends Omit<BasePlace, 'id'> {
   description?: string;
@@ -80,12 +94,15 @@ export const EditLocation: React.FC = () => {
           address: placeData.address || '',
           mainTag: placeData.category_id?.toString() || '',
           description: placeData.description || '',
-          imageUrl: placeData.imageUrl || '',
-          images: placeData.images || [],
+          imageUrl: placeData.main_photo_url || '',
+          images: placeData.photos?.map((photo: PlacePhoto) => photo.url) || [],
           isPremium: placeData.isPremium || false,
           priceLevel: placeData.priceLevel || 1,
-          coordinates: placeData.coordinates || { lat: 0, lng: 0 },
-          tags: placeData.tags_ids || [],
+          coordinates: { 
+            lat: parseFloat(placeData.latitude) || 0, 
+            lng: parseFloat(placeData.longitude) || 0 
+          },
+          tags: placeData.PlaceTags?.map((tag: PlaceTag) => tag.tag_id) || [],
           phone: placeData.phone || '',
           mainImage: null,
           additionalImages: []
@@ -320,18 +337,21 @@ export const EditLocation: React.FC = () => {
                   onClick={() => {
                     setForm(prev => ({
                       ...prev,
-                      tags: prev.tags?.includes(tag.id)
+                      tags: prev.tags.includes(tag.id)
                         ? prev.tags.filter(t => t !== tag.id)
-                        : [...(prev.tags || []), tag.id]
+                        : [...prev.tags, tag.id]
                     }));
                   }}
                   className={`px-3 py-2 rounded-lg text-left text-sm transition-all ${
-                    form.tags?.includes(tag.id)
+                    form.tags.includes(tag.id)
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {tag.name}
+                  <div className="flex items-center gap-2">
+                    <img src={tag.icon} alt="" className="w-5 h-5" />
+                    <span>{tag.name}</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -373,10 +393,10 @@ export const EditLocation: React.FC = () => {
             <div className="grid grid-cols-4 gap-4">
               {form.images?.map((url, index) => (
                 <ImageUploadBox
-                  key={url}
+                  key={`${url}-${index}`}
                   image={url}
-                  onUpload={(e) => handleImageChange(e, false)}
                   onRemove={() => removeImage(index, false)}
+                  onUpload={(e) => handleImageChange(e, false)}
                 />
               ))}
               {(!form.images || form.images.length < 8) && (

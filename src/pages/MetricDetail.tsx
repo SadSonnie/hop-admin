@@ -9,7 +9,17 @@ export const MetricDetail: React.FC = () => {
   const metric = metrics.find(m => m.to === `/metrics/${id}`);
 
   if (!metric?.data) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
+        <div className="text-xl text-gray-600 mb-4">Метрика не найдена</div>
+        <button 
+          onClick={() => navigate('/metrics')}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Вернуться к метрикам
+        </button>
+      </div>
+    );
   }
 
   return (

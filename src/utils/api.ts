@@ -104,6 +104,7 @@ interface CreatePlaceData {
 interface FeedItem {
   id: string | number;
   type: 'collection' | 'place';
+  order?: number;
   data: {
     id?: string | number;
     title?: string;
@@ -324,23 +325,12 @@ export const api = {
 
   saveFeed: (items: FeedItem[]): Promise<void> => {
     // Преобразуем данные для сохранения
-    const transformedItems = items.map(item => {
-      if (item.type === 'place') {
-        return {
-          id: item.data.id,
-          type: item.type,
-          data: item.data
-        };
-      }
-      if (item.type === 'collection') {
-        return {
-          id: item.data.id,
-          type: item.type,
-          data: item.data
-        };
-      }
-      return item;
-    });
+    const transformedItems = items.map(item => ({
+      id: item.id, // Use the feed item ID
+      type: item.type,
+      order: item.order,
+      data: item.data
+    }));
 
     return apiRequest('/feed', {
       method: 'POST',
