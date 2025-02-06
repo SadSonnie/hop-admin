@@ -148,7 +148,7 @@ export const EditLocation: React.FC = () => {
         });
         return;
       }
-      //хелоо
+      //хелоопш
       const placeData = {
         id: Number(id),  // Добавляем id в данные
         name: form.name,
@@ -185,7 +185,7 @@ export const EditLocation: React.FC = () => {
       
       notification.success({
         message: 'Успешно',
-        description: 'Место успешно обновлено',
+        description: 'Место успешно обновленоoo',
       });
   
       navigate('/locations');
