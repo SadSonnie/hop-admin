@@ -148,7 +148,7 @@ export const EditLocation: React.FC = () => {
         });
         return;
       }
-  
+      //хелоо
       const placeData = {
         id: Number(id),  // Добавляем id в данные
         name: form.name,
