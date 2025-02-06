@@ -4,6 +4,7 @@ const axios = require('axios');
 
 // Базовый URL вашего API
 const API_URL = process.env.API_URL || 'http://localhost:8080';
+//const API_URL = process.env.API_URL || 'https://back.hoptesthop.ru';
 
 // Replace 'YOUR_BOT_TOKEN' with the token from BotFather
 const bot = new TelegramBot('7338184879:AAFfgHPQgFXy60wlMz2-3_X_EQO8vtCbQE4', { polling: true });

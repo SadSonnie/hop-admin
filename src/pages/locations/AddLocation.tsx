@@ -65,6 +65,88 @@ export const AddLocation: React.FC = () => {
     fetchData();
   }, []);
 
+  const MAX_IMAGE_SIZE = 1024 * 1024; // 1MB
+  const MAX_TOTAL_SIZE = 8 * 1024 * 1024; // 8MB
+
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+
+          // Calculate new dimensions while maintaining aspect ratio
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1200;
+
+          if (width > height && width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+              resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+            },
+            'image/jpeg',
+            0.8 // compression quality
+          );
+        };
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const validateAndCompressImages = async (images: File[]): Promise<File[]> => {
+    let totalSize = 0;
+    const compressedImages: File[] = [];
+
+    for (const image of images) {
+      if (image.size > MAX_IMAGE_SIZE * 2) { // If image is more than 2MB
+        notification.error({
+          message: 'Ошибка',
+          description: `Изображение ${image.name} слишком большое. Максимальный размер - 2MB`,
+        });
+        throw new Error('Image too large');
+      }
+
+      const compressedImage = await compressImage(image);
+      totalSize += compressedImage.size;
+
+      if (totalSize > MAX_TOTAL_SIZE) {
+        notification.error({
+          message: 'Ошибка',
+          description: 'Общий размер изображений превышает 8MB',
+        });
+        throw new Error('Total size too large');
+      }
+
+      compressedImages.push(compressedImage);
+    }
+
+    return compressedImages;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -98,7 +180,7 @@ export const AddLocation: React.FC = () => {
         phone: form.phone || ''
       };
 
-      // Собираем все фотографии в один массив
+      // Собираем и обрабатываем изображения
       const photos: File[] = [];
       if (form.mainImage) {
         photos.push(form.mainImage);
@@ -107,7 +189,10 @@ export const AddLocation: React.FC = () => {
         photos.push(...form.additionalImages);
       }
 
-      await api.createPlace(placeData, photos);
+      // Сжимаем и валидируем изображения перед отправкой
+      const compressedPhotos = await validateAndCompressImages(photos);
+
+      await api.createPlace(placeData, compressedPhotos);
       
       notification.success({
         message: 'Успешно',

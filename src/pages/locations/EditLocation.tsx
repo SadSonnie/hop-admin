@@ -128,7 +128,7 @@ export const EditLocation: React.FC = () => {
     e.preventDefault();
     
     if (!id) return;
-
+  
     // Проверяем обязательные поля
     if (!form.name || !form.address || !form.mainTag) {
       notification.error({
@@ -137,7 +137,7 @@ export const EditLocation: React.FC = () => {
       });
       return;
     }
-
+  
     try {
       // Преобразуем mainTag в числовой id
       const category_id = parseInt(form.mainTag, 10);
@@ -148,22 +148,46 @@ export const EditLocation: React.FC = () => {
         });
         return;
       }
-
+  
       const placeData = {
+        id: Number(id),  // Добавляем id в данные
         name: form.name,
         address: form.address,
         category_id,
         tags_ids: form.tags,
+        description: form.description,
+        phone: form.phone,
+        priceLevel: form.priceLevel,
+        isPremium: form.isPremium,
+        ...(form.coordinates && {
+          latitude: form.coordinates.lat,
+          longitude: form.coordinates.lng
+        })
       };
-
-      console.log('Saving place data:', placeData);
-      await api.updatePlace(id, placeData);
+  
+      // Collect photos
+      const photos: File[] = [];
+      if (form.mainImage) {
+        photos.push(form.mainImage);
+      }
+      if (form.additionalImages.length > 0) {
+        photos.push(...form.additionalImages);
+      }
+  
+      console.log('EditLocation - данные для отправки:', {
+        id,
+        placeData,
+        photos,
+        formState: form // добавляем состояние формы для полноты картины
+      });
+      
+      await api.updatePlace(id, placeData, photos);
       
       notification.success({
         message: 'Успешно',
         description: 'Место успешно обновлено',
       });
-
+  
       navigate('/locations');
     } catch (error) {
       console.error('Error updating place:', error);

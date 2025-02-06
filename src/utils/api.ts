@@ -203,7 +203,23 @@ export const api = {
   }),
 
   // Места
-  createPlace: (place: CreatePlaceData, photos: File[]): Promise<Place> => {
+  uploadPhotos: async (placeId: number | string, photos: File[]): Promise<void> => {
+    const formData = new FormData();
+    formData.append('id', placeId.toString());
+    photos.forEach((photo) => {
+      formData.append('photos', photo);
+    });
+
+    await apiRequest('/places/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getInitData()}`,
+      },
+      body: formData,
+    });
+  },
+
+  createPlace: async (place: CreatePlaceData, photos: File[]): Promise<Place> => {
     const formData = new FormData();
 
     // Добавляем обязательные поля
@@ -234,16 +250,18 @@ export const api = {
       formData.append('phone', place.phone);
     }
 
-    // Добавляем фотографии (максимум 10)
-    photos.slice(0, 10).forEach((photo) => {
-      formData.append('photos', photo);
-    });
-
-    return apiRequest('/places', {
+    // Создаем место
+    const createdPlace = await apiRequest('/places', {
       method: 'POST',
       body: formData,
-      // Не указываем Content-Type, браузер сам добавит правильный с boundary
     });
+
+    // Если есть фотографии, загружаем их
+    if (photos.length > 0) {
+      await api.uploadPhotos(createdPlace.id, photos);
+    }
+
+    return createdPlace;
   },
 
   getPlaces: (): Promise<Place[]> => {
@@ -279,31 +297,36 @@ export const api = {
     };
   }),
 
-  updatePlace: (id: number | string, data: Partial<CreatePlaceData>) => apiRequest('/places', {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ 
-      id,
-      ...data,
-      category_id: data.category_id ? parseInt(data.category_id.toString()) : undefined
-    }),
-  }).then(response => {
-    const responseData = response.data || response;
-    return {
-      ...responseData,
-      category_id: responseData.category_id || responseData.mainTag // Поддержка обоих форматов
-    };
-  }),
+  updatePlace: async (id: number | string, placeData: Partial<CreatePlaceData>, photos?: File[]) => {
+    console.log('updatePlace - входные данные:', { id, placeData, photos });
+
+    // Обновляем данные места
+    const updatedPlace = await apiRequest('/places', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getInitData()}`,
+      },
+      body: JSON.stringify({ ...placeData, id: Number(id) }),
+    });
+
+    console.log('updatePlace - отправленные данные:', { ...placeData, id: Number(id) });
+
+    // Если есть новые фотографии, заменяем ими старые
+    if (photos && photos.length > 0) {
+      await api.uploadPhotos(id, photos);
+    }
+
+    return updatedPlace;
+  },
 
   deletePlace: (id: number | string) => apiRequest('/places', {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ id }),
-  }),
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: Number(id) }), // Преобразуем в строку
+    }),
 
   // Дополнительные методы для мест
   getFeed: async (params?: GetFeedParams): Promise<FeedResponse> => {
