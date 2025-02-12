@@ -53,6 +53,10 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
     throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 }
 
@@ -392,6 +396,35 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(review),
     }),
+
+  // Reviews management
+  getPendingReviews: (): Promise<Review[]> => {
+    return apiRequest('/admin/reviews/pending');
+  },
+
+  getReview: (id: string | number): Promise<Review> => {
+    return apiRequest(`/admin/reviews/${id}`);
+  },
+
+  moderateReview: (id: string | number, data: { 
+    status: 'approved' | 'rejected';
+    title?: string;
+    content?: string;
+  }): Promise<void> => {
+    return apiRequest(`/admin/reviews/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteReview: (id: string | number): Promise<void> => {
+    return apiRequest(`/admin/reviews/${id}`, {
+      method: 'DELETE',
+    });
+  },
 
   // Подборки
   getCollections: (params?: { limit?: string; offset?: string }) => 

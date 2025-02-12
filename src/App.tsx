@@ -5,6 +5,7 @@ import { Metrics } from './pages/Metrics';
 import { MetricDetail } from './pages/MetricDetail';
 import { PendingLocations } from './pages/locations/PendingLocations';
 import { PendingReviews } from './pages/reviews/PendingReviews';
+import { EditReview } from './pages/reviews/EditReview';
 import PlacesList from './pages/feed/places/PlacesList';
 import FeedEditor from './pages/feed/places/FeedEditor';
 import LocationsList from './pages/locations/LocationsList';
@@ -48,6 +49,7 @@ function App() {
           <Route path="/collections/add" element={<AddCollection />} />
           <Route path="/collections/:id" element={<EditCollection />} />
           <Route path="/reviews/pending" element={<PendingReviews />} />
+          <Route path="/reviews/edit/:id" element={<EditReview />} />
           <Route path="/feed" element={<FeedEditor />} />
           <Route path="/places" element={<PlacesList />} />
           <Route path="/places/:id" element={<PlaceDetailsView />} />

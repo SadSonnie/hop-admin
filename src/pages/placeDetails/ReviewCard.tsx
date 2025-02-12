@@ -55,10 +55,10 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
       {/* Фотографии */}
       {review.photos && review.photos.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
-          {review.photos.map((photo: string, index: number) => (
+          {review.photos.map((photo: { photo_url: string }, index: number) => (
             <img
               key={index}
-              src={photo}
+              src={photo.photo_url}
               alt={`Review photo ${index + 1}`}
               className="w-full h-[100px] object-cover rounded-lg"
             />

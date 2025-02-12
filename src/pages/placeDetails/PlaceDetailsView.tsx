@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, ArrowLeft, MapPin, Star, Phone, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Place, ExtendedReview } from '@/types';
+import type { Place } from '@/types';
+import type { ExtendedReview } from '@/types/index';
 import api from '../../utils/api';
 import ReviewCard from './ReviewCard';
 import { RatingStars } from './RatingStars';
@@ -501,8 +502,11 @@ const PlaceDetailsView: React.FC = () => {
                 </div>
               ))
             ) : (
-              reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
+              reviews.map((review: any) => (
+                <ReviewCard 
+                  key={review.id} 
+                  review={review} 
+                />
               ))
             )}
           </div>

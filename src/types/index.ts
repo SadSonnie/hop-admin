@@ -66,7 +66,15 @@ export interface Review {
   authorName?: string;
   authorAvatar?: string;
   title?: string;
-  photos?: string[];
+  photos?: Array<{ photo_url: string }>;
+  place?: {
+    name: string;
+    address: string;
+  };
+  author?: {
+    tg_id: string;
+  };
+  createdAt?: string;
 }
 
 export interface ExtendedReview extends Review {
@@ -75,7 +83,7 @@ export interface ExtendedReview extends Review {
   status: 'pending' | 'approved' | 'rejected';
   date: string;
   title: string;
-  photos: string[];
+  photos: Array<{ photo_url: string }>;
 }
 
 export interface Collection {
