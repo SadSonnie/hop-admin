@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BasePlace } from '../../types/index';
 import { mockTags } from '../../data/mockTags';
 import { Plus, X, MapPin } from 'lucide-react';
 import { api } from '../../utils/api';
 import { notification } from 'antd';
+import L from 'leaflet';
 
 interface Category {
   id: number;
@@ -25,6 +26,11 @@ interface PlaceTag {
   };
 }
 
+interface MapProps {
+  onLocationSelect: (lat: number, lng: number, address: string) => void;
+  defaultCenter?: { lat: number; lng: number };
+}
+
 // Расширяем базовый интерфейс необязательными полями для формы
 interface LocationForm extends Omit<BasePlace, 'id'> {
   description?: string;
@@ -32,10 +38,10 @@ interface LocationForm extends Omit<BasePlace, 'id'> {
   images?: string[];
   isPremium?: boolean;
   priceLevel?: number;
-  coordinates?: { 
-    lat: number;
-    lng: number;
-  };
+  coordinates: { 
+    latitude: number;
+    longitude: number;
+  } | null;
   tags: number[];
   phone?: string;
   mainImage: File | null;
@@ -52,11 +58,206 @@ const initialForm: LocationForm = {
   images: [],
   isPremium: false,
   priceLevel: 1,
-  coordinates: { lat: 0, lng: 0 },
+  coordinates: null,
   tags: [],
   phone: '',
   mainImage: null,
   additionalImages: []
+};
+
+// Функция для геокодинга адреса через Nominatim
+const searchAddress = async (query: string) => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query
+      )}&limit=5`
+    );
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error searching address:', error);
+    return [];
+  }
+};
+
+// Функция для получения адреса по координатам
+const reverseGeocode = async (lat: number, lng: number) => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+    );
+    return await response.json();
+  } catch (error) {
+    console.error('Error reverse geocoding:', error);
+    throw error;
+  }
+};
+
+// Функция для форматирования адреса
+const formatAddress = (fullAddress: string): string => {
+  const parts = fullAddress.split(',');
+  if (parts.length <= 3) return fullAddress;
+  
+  const cityAndStreet = parts.slice(0, 2);
+  const country = parts[parts.length - 1];
+  return [...cityAndStreet, country].join(',').trim();
+};
+
+const MapComponent: React.FC<MapProps> = ({ onLocationSelect, defaultCenter }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [] = useState(true);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  // Добавляем функцию для центрирования карты
+  const centerMapOnMarker = (lat: number, lng: number) => {
+    if (mapInstanceRef.current && markerRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setView([lat, lng], currentZoom);
+      markerRef.current.setLatLng([lat, lng]);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initMap = () => {
+      try {
+        if (!mapRef.current) return false;
+        if (mapInstanceRef.current) return true;
+
+        const defaultPosition = defaultCenter || { lat: 59.9386, lng: 30.3141 };
+        const container = mapRef.current;
+
+        container.style.minHeight = '400px';
+        container.style.width = '100%';
+
+        const map = L.map(container, {
+          center: [defaultPosition.lat, defaultPosition.lng],
+          zoom: 12,
+          zoomControl: true,
+          doubleClickZoom: false,
+          trackResize: false
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const icon = L.icon({
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        });
+
+        const marker = L.marker([defaultPosition.lat, defaultPosition.lng], {
+          draggable: true,
+          autoPan: false,
+          icon: icon,
+          interactive: true,
+          keyboard: false,
+          zIndexOffset: 1000
+        }).addTo(map);
+
+        map.off('click');
+        marker.off('dragend');
+
+        map.on('click', async (e: L.LeafletMouseEvent) => {
+          const { lat, lng } = e.latlng;
+          if (markerRef.current) {
+            markerRef.current.setLatLng([lat, lng]);
+          }
+          
+          try {
+            const result = await reverseGeocode(lat, lng);
+            if (result.display_name) {
+              onLocationSelect(lat, lng, formatAddress(result.display_name));
+            }
+          } catch (error) {
+            console.error('Error getting address:', error);
+            notification.error({
+              message: 'Ошибка',
+              description: 'Не удалось получить адрес'
+            });
+          }
+        });
+
+        marker.on('dragend', async () => {
+          if (!markerRef.current) return;
+          const position = markerRef.current.getLatLng();
+          try {
+            const result = await reverseGeocode(position.lat, position.lng);
+            if (result.display_name) {
+              onLocationSelect(position.lat, position.lng, formatAddress(result.display_name));
+            }
+          } catch (error) {
+            console.error('Error getting address:', error);
+            notification.error({
+              message: 'Ошибка',
+              description: 'Не удалось получить адрес'
+            });
+          }
+        });
+
+        mapInstanceRef.current = map;
+        markerRef.current = marker;
+
+        requestAnimationFrame(() => {
+          if (map && isMounted) {
+            map.invalidateSize();
+          }
+        });
+
+        return true;
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        if (isMounted) {
+          setMapError('Не удалось инициализировать карту');
+        }
+        return false;
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (defaultCenter) {
+      centerMapOnMarker(defaultCenter.lat, defaultCenter.lng);
+    }
+  }, [defaultCenter]);
+
+  if (mapError) return <div>Ошибка: {mapError}</div>;
+
+  return (
+    <div className="space-y-2">
+      <div 
+        className="rounded-lg border border-gray-300 overflow-hidden"
+        style={{ height: '350px' }}
+      >
+        <div 
+          ref={mapRef} 
+          className="w-full h-[400px]"
+        />
+      </div>
+    </div>
+  );
 };
 
 export const EditLocation: React.FC = () => {
@@ -98,10 +299,10 @@ export const EditLocation: React.FC = () => {
           images: placeData.photos?.map((photo: PlacePhoto) => photo.url) || [],
           isPremium: placeData.isPremium || false,
           priceLevel: placeData.priceLevel || 1,
-          coordinates: { 
-            lat: parseFloat(placeData.latitude) || 0, 
-            lng: parseFloat(placeData.longitude) || 0 
-          },
+          coordinates: placeData.latitude && placeData.longitude ? { 
+            latitude: parseFloat(placeData.latitude), 
+            longitude: parseFloat(placeData.longitude) 
+          } : null,
           tags: placeData.PlaceTags?.map((tag: PlaceTag) => tag.tag_id) || [],
           phone: placeData.phone || '',
           mainImage: null,
@@ -160,8 +361,8 @@ export const EditLocation: React.FC = () => {
         priceLevel: form.priceLevel,
         isPremium: form.isPremium,
         ...(form.coordinates && {
-          latitude: form.coordinates.lat,
-          longitude: form.coordinates.lng
+          latitude: form.coordinates.latitude,
+          longitude: form.coordinates.longitude
         })
       };
   
@@ -287,6 +488,14 @@ export const EditLocation: React.FC = () => {
       </label>
     </div>
   );
+
+  const handleLocationChange = (lat: number, lng: number, address: string) => {
+    setForm(prev => ({
+      ...prev,
+      address,
+      coordinates: { latitude: lat, longitude: lng }
+    }));
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -437,21 +646,47 @@ export const EditLocation: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Местоположение
           </label>
-          <div className="relative">
+          <div className="relative mb-2" style={{ zIndex: 1000 }}>
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               required
               value={form.address}
-              onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+              onChange={async (e) => {
+                const value = e.target.value;
+                setForm(prev => ({ ...prev, address: value }));
+                
+                if (value.length >= 3) {
+                  try {
+                    const results = await searchAddress(value);
+                    if (results && results.length > 0) {
+                      const firstResult = results[0];
+                      setForm(prev => ({
+                        ...prev,
+                        address: formatAddress(firstResult.display_name),
+                        coordinates: {
+                          latitude: parseFloat(firstResult.lat),
+                          longitude: parseFloat(firstResult.lon)
+                        }
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('Error searching address:', error);
+                  }
+                }
+              }}
               placeholder="Введите адрес"
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="mt-2 p-4 bg-gray-100 rounded-lg">
-            <p className="text-sm text-gray-600">
-              Здесь будет карта для выбора местоположения
-            </p>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <MapComponent 
+              onLocationSelect={handleLocationChange}
+              defaultCenter={form.coordinates ? {
+                lat: form.coordinates.latitude,
+                lng: form.coordinates.longitude
+              } : undefined}
+            />
           </div>
         </div>
 

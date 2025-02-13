@@ -101,7 +101,10 @@ interface CreatePlaceData {
   description?: string;
   isPremium?: boolean;
   priceLevel?: number;
-  coordinates?: { lat: number; lng: number };
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
   phone?: string;
 }
 
@@ -248,7 +251,10 @@ export const api = {
       formData.append('priceLevel', place.priceLevel.toString());
     }
     if (place.coordinates) {
-      formData.append('coordinates', JSON.stringify(place.coordinates));
+      formData.append('coordinates', JSON.stringify({
+        latitude: place.coordinates.latitude,
+        longitude: place.coordinates.longitude
+      }));
     }
     if (place.phone) {
       formData.append('phone', place.phone);

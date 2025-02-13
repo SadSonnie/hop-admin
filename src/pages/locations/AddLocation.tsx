@@ -1,9 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockTags } from '../../data/mockTags';
 import { Plus, X, MapPin } from 'lucide-react';
 import { api } from '../../utils/api';
 import { notification } from 'antd';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet's default icon
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 interface Category {
   id: string;
@@ -20,7 +30,7 @@ interface LocationForm {
   images?: string[];
   isPremium?: boolean;
   priceLevel?: number;
-  coordinates?: { lat: number; lng: number };
+  coordinates: { latitude: number; longitude: number } | null;
   tags: string[];
   phone?: string;
   mainImage: File | null;
@@ -36,18 +46,235 @@ const initialForm: LocationForm = {
   images: [],
   isPremium: false,
   priceLevel: 1,
-  coordinates: { lat: 0, lng: 0 },
+  coordinates: null,
   tags: [],
   phone: '',
   mainImage: null,
   additionalImages: []
 };
 
-export const AddLocation: React.FC = () => {
+interface MapProps {
+  onLocationSelect: (lat: number, lng: number, address: string) => void;
+  defaultCenter?: { lat: number; lng: number };
+}
+
+// Функция для геокодинга адреса через Nominatim
+const searchAddress = async (query: string) => {
+  const encodedQuery = encodeURIComponent(query);
+  console.log('Searching with query:', encodedQuery);
+  
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?` + 
+    `format=json&` +
+    `q=${encodedQuery}&` +
+    `countrycodes=ru&` +
+    `limit=5&` +
+    `addressdetails=1&` +
+    `accept-language=ru`,
+    {
+      headers: {
+        'Accept-Language': 'ru'
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error('Network response was not ok');
+  }
+  
+  const results = await response.json();
+  console.log('Search results:', results);
+  return results;
+};
+
+// Функция для получения адреса по координатам
+const reverseGeocode = async (lat: number, lng: number) => {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ru`,
+    {
+      headers: {
+        'Accept-Language': 'ru'
+      }
+    }
+  );
+  return response.json();
+};
+
+// Функция для форматирования адреса
+const formatAddress = (fullAddress: string): string => {
+  // Разбиваем полный адрес по запятым
+  const parts = fullAddress.split(',');
+  
+  // Берем первые два элемента (обычно это улица и номер дома)
+  const streetParts = parts.slice(0, 2);
+  
+  // Объединяем их обратно и убираем лишние пробелы
+  return streetParts.join(',').trim();
+};
+
+const MapComponent: React.FC<MapProps> = ({ onLocationSelect, defaultCenter }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [] = useState(true);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  // Добавляем функцию для центрирования карты
+  const centerMapOnMarker = (lat: number, lng: number) => {
+    if (mapInstanceRef.current && markerRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setView([lat, lng], currentZoom);
+      markerRef.current.setLatLng([lat, lng]);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initMap = () => {
+      try {
+        if (!mapRef.current) return false;
+        if (mapInstanceRef.current) return true;
+
+        const defaultPosition = defaultCenter || { lat: 59.9386, lng: 30.3141 };
+        const container = mapRef.current;
+
+        container.style.minHeight = '400px';
+        container.style.width = '100%';
+
+        const map = L.map(container, {
+          center: [defaultPosition.lat, defaultPosition.lng],
+          zoom: 12,
+          zoomControl: true,
+          doubleClickZoom: false,
+          trackResize: false
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const icon = L.icon({
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        });
+
+        const marker = L.marker([defaultPosition.lat, defaultPosition.lng], {
+          draggable: true,
+          autoPan: false,
+          icon: icon,
+          interactive: true,
+          keyboard: false,
+          zIndexOffset: 1000
+        }).addTo(map);
+
+        map.off('click');
+        marker.off('dragend');
+
+        map.on('click', async (e: L.LeafletMouseEvent) => {
+          const { lat, lng } = e.latlng;
+          if (markerRef.current) {
+            markerRef.current.setLatLng([lat, lng]);
+          }
+          
+          try {
+            const result = await reverseGeocode(lat, lng);
+            if (result.display_name) {
+              onLocationSelect(lat, lng, formatAddress(result.display_name));
+            }
+          } catch (error) {
+            console.error('Error getting address:', error);
+            notification.error({
+              message: 'Ошибка',
+              description: 'Не удалось получить адрес'
+            });
+          }
+        });
+
+        marker.on('dragend', async () => {
+          if (!markerRef.current) return;
+          const position = markerRef.current.getLatLng();
+          try {
+            const result = await reverseGeocode(position.lat, position.lng);
+            if (result.display_name) {
+              onLocationSelect(position.lat, position.lng, formatAddress(result.display_name));
+            }
+          } catch (error) {
+            console.error('Error getting address:', error);
+            notification.error({
+              message: 'Ошибка',
+              description: 'Не удалось получить адрес'
+            });
+          }
+        });
+
+        mapInstanceRef.current = map;
+        markerRef.current = marker;
+
+        requestAnimationFrame(() => {
+          if (map && isMounted) {
+            map.invalidateSize();
+          }
+        });
+
+        return true;
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        if (isMounted) {
+          setMapError('Не удалось инициализировать карту');
+        }
+        return false;
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (defaultCenter) {
+      centerMapOnMarker(defaultCenter.lat, defaultCenter.lng);
+    }
+  }, [defaultCenter]);
+
+  if (mapError) return <div>Ошибка: {mapError}</div>;
+
+  return (
+    <div className="space-y-2">
+      <div 
+        className="rounded-lg border border-gray-300 overflow-hidden"
+        style={{ height: '350px' }}
+      >
+        <div 
+          ref={mapRef} 
+          className="w-full h-[400px]"
+        />
+      </div>
+    </div>
+  );
+};
+
+const AddLocation: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState<LocationForm>(initialForm);
   const [categories, setCategories] = useState<Category[]>([]);
   const [, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: number; lng: number }[]>([]);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -151,10 +378,10 @@ export const AddLocation: React.FC = () => {
     e.preventDefault();
     
     // Проверяем обязательные поля
-    if (!form.name || !form.address || !form.mainTag) {
+    if (!form.name || !form.address || !form.mainTag || !form.coordinates) {
       notification.error({
         message: 'Ошибка',
-        description: 'Пожалуйста, заполните все обязательные поля',
+        description: 'Пожалуйста, заполните все обязательные поля и укажите местоположение на карте',
       });
       return;
     }
@@ -173,12 +400,10 @@ export const AddLocation: React.FC = () => {
         description: form.description || '',
         isPremium: form.isPremium || false,
         priceLevel: form.priceLevel || 1,
-        coordinates: form.coordinates ? {
-          lat: form.coordinates.lat,
-          lng: form.coordinates.lng
-        } : undefined,
+        coordinates: form.coordinates || { latitude: 0, longitude: 0 },
         phone: form.phone || ''
       };
+
 
       // Собираем и обрабатываем изображения
       const photos: File[] = [];
@@ -451,21 +676,91 @@ export const AddLocation: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Местоположение
           </label>
-          <div className="relative">
+          <div className="relative mb-2" style={{ zIndex: 1000 }}>
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               required
               value={form.address}
-              onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+              onChange={async (e) => {
+                const value = e.target.value;
+                setForm(prev => ({ ...prev, address: value }));
+                console.log('Input value:', value);
+                
+                // Очищаем предыдущий таймер
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                }
+                
+                if (value.length >= 3) {
+                  // Устанавливаем новый таймер
+                  searchTimeoutRef.current = setTimeout(async () => {
+                    try {
+                      console.log('Searching for:', value);
+                      const results = await searchAddress(value);
+                      console.log('Search results:', results);
+                      if (results && results.length > 0) {
+                        const mappedResults = results.map((item: { display_name: string; lat: string; lon: string }) => ({
+                          display_name: item.display_name,
+                          lat: parseFloat(item.lat),
+                          lng: parseFloat(item.lon)
+                        }));
+                        console.log('Mapped results:', mappedResults);
+                        setSearchResults(mappedResults);
+                      } else {
+                        console.log('No results found');
+                        setSearchResults([]);
+                      }
+                    } catch (error) {
+                      console.error('Error searching:', error);
+                      setSearchResults([]);
+                    }
+                  }, 300); // Задержка в 300мс
+                } else {
+                  setSearchResults([]);
+                }
+              }}
               placeholder="Введите адрес"
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {searchResults.length > 0 && (
+              <div 
+                className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden"
+                style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1001 }}
+              >
+                {searchResults.map((result, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                    onClick={() => {
+                      console.log('Selected result:', result);
+                      const newCoordinates = { latitude: result.lat, longitude: result.lng };
+                      setForm(prev => ({
+                        ...prev,
+                        address: formatAddress(result.display_name),
+                        coordinates: newCoordinates
+                      }));
+                      setSearchResults([]);
+                    }}
+                  >
+                    {result.display_name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="mt-2 p-4 bg-gray-100 rounded-lg">
-            <p className="text-sm text-gray-600">
-              Здесь будет карта для выбора местоположения
-            </p>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <MapComponent
+              onLocationSelect={(lat, lng, address) => {
+                setForm(prev => ({
+                  ...prev,
+                  address,
+                  coordinates: { latitude: lat, longitude: lng }
+                }));
+              }}
+              defaultCenter={form.coordinates ? { lat: form.coordinates.latitude, lng: form.coordinates.longitude } : undefined}
+            />
           </div>
         </div>
 
