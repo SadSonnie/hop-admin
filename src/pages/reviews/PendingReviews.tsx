@@ -94,7 +94,7 @@ export const PendingReviews: React.FC = () => {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="text-blue-600 flex items-center gap-2 hover:text-blue-700"
           >
             ← Назад
