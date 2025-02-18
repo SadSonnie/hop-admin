@@ -106,6 +106,7 @@ interface CreatePlaceData {
     longitude: number;
   };
   phone?: string;
+  status?: string;
 }
 
 interface FeedItem {
@@ -233,6 +234,7 @@ export const api = {
     formData.append('name', place.name);
     formData.append('address', place.address);
     formData.append('category_id', place.category_id.toString());
+    formData.append('status', place.status || 'approved');
 
     // Добавляем опциональные поля
     if (place.collection_ids?.length) {
@@ -274,8 +276,8 @@ export const api = {
     return createdPlace;
   },
 
-  getPlaces: (): Promise<Place[]> => {
-    return apiRequest('/places')
+  getPlaces: (params?: { showAll?: boolean }): Promise<Place[]> => {
+    return apiRequest('/places', { params: params ? { showAll: params.showAll ? 'true' : 'false' } : undefined })
       .then(response => {
         // Получаем массив мест из ответа
         let places = response;

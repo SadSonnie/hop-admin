@@ -395,15 +395,20 @@ const AddLocation: React.FC = () => {
       const placeData = {
         name: form.name,
         address: form.address,
-        category_id: parseInt(form.mainTag, 10),
-        tags_ids: tags_ids.length > 0 ? tags_ids : undefined,
+        category_id: Number(form.mainTag),
+        id: String(Date.now()),
         description: form.description || '',
         isPremium: form.isPremium || false,
-        priceLevel: form.priceLevel || 1,
-        coordinates: form.coordinates || { latitude: 0, longitude: 0 },
-        phone: form.phone || ''
+        priceLevel: form.priceLevel || 0,
+        coordinates: {
+          latitude: form.coordinates?.latitude,
+          longitude: form.coordinates?.longitude
+        },
+        phone: form.phone || '',
+        collection_ids: [],
+        tags_ids: tags_ids.length > 0 ? tags_ids : [],
+        status: 'approved'
       };
-
 
       // Собираем и обрабатываем изображения
       const photos: File[] = [];

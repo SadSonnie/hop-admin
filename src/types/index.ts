@@ -32,6 +32,7 @@ export interface Place extends BasePlace {
   category_id?: number;
   main_photo_url?: string;
   mainTag?: string;
+  status?: 'approved' | 'pending' | 'rejected';
 }
 
 export interface MetricCardType {
