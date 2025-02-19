@@ -85,8 +85,6 @@ const FeedItemComponent = React.memo(({ item, index, isEditing, feedItems, setFe
             priceLevel={item.data.priceLevel}
             main_photo_url={item.data.main_photo_url}
             imageUrl={item.data.main_photo_url}
-            rating={item.data.rating || 0}
-            distance={item.data.distance || '0 км'}
             tagIds={item.data.PlaceTags?.map((tag: { tag_id: number }) => tag.tag_id) || []}
           />
         ) : null}

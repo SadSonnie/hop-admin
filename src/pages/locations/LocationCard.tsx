@@ -1,5 +1,4 @@
 import React from 'react';
-import { Star } from 'lucide-react';
 import { Place } from '../../types';
 import { useCategories } from '../../hooks/useCategories';
 
@@ -56,15 +55,6 @@ const LocationCard: React.FC<LocationCardProps> = ({
         />
         {/* Метрики поверх изображения */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2">
-          {/* Тег оценки */}
-          <div 
-            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center gap-1"
-            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
-          >
-            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">0</span>
-            <Star className="w-4 h-4 text-white fill-white" />
-          </div>
-          {/* Тег цены */}
           <div 
             className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
             style={{ background: 'rgba(30, 71, 247, 0.2)' }}

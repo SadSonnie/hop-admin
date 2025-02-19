@@ -41,8 +41,6 @@ interface PlaceCardProps {
   imageUrl?: string;
   isPremium?: boolean;
   priceLevel?: number;
-  rating?: number;
-  distance?: number;
   tagIds?: number[];
   main_photo_url?: string;
   category_id?: number;
@@ -53,9 +51,7 @@ interface PlaceCardProps {
 const PlaceCard: React.FC<PlaceCardProps> = ({ 
   id,
   name, 
-  description, 
-  rating = 0, 
-  distance = 0, 
+  description,
   imageUrl,
   main_photo_url,
   isPremium, 
@@ -110,13 +106,6 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
         />
         {/* Метрики поверх изображения */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2">
-          {/* Тег оценки */}
-          <div 
-            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center gap-1"
-            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
-          >
-            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{rating}</span>
-          </div>
           {/* Тег цены */}
           <div 
             className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
@@ -125,13 +114,6 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
             <div className="flex items-center">
               {renderPriceLevel()}
             </div>
-          </div>
-          {/* Тег расстояния */}
-          <div 
-            className="h-[22px] backdrop-blur-[8px] px-2 rounded-[100px] flex items-center"
-            style={{ background: 'rgba(30, 71, 247, 0.2)' }}
-          >
-            <span className="text-[12px] font-[500] leading-[14.38px] tracking-[-0.02em] text-white">{distance}</span>
           </div>
         </div>
       </div>
